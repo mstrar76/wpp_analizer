@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, DollarSign, Star, Smartphone, Users, Target } from 'lucide-react';
+import { TrendingUp, DollarSign, Star, Smartphone, Users, Target, X } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useChats } from '../hooks/useChats';
 import { calculateKPIs, getDeviceBreakdown, getLeadSourceDistribution, getCommonRepairs, getQualityDistribution, filterByDateRange, getDateRangePreset } from '../utils/analytics';
@@ -9,12 +9,29 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 export default function Dashboard() {
   const { chats, loading } = useChats();
   const [datePreset, setDatePreset] = useState('allTime');
+  const [activeFilters, setActiveFilters] = useState<{ device?: string; channel?: string }>({});
 
   const filteredChats = useMemo(() => {
-    if (datePreset === 'allTime') return chats;
-    const range = getDateRangePreset(datePreset);
-    return filterByDateRange(chats, range.start, range.end);
-  }, [chats, datePreset]);
+    let filtered = chats;
+    
+    // Apply date filter
+    if (datePreset !== 'allTime') {
+      const range = getDateRangePreset(datePreset);
+      filtered = filterByDateRange(filtered, range.start, range.end);
+    }
+    
+    // Apply device filter
+    if (activeFilters.device) {
+      filtered = filtered.filter(chat => chat.analysis?.equipmentType === activeFilters.device);
+    }
+    
+    // Apply channel filter
+    if (activeFilters.channel) {
+      filtered = filtered.filter(chat => chat.analysis?.channel === activeFilters.channel);
+    }
+    
+    return filtered;
+  }, [chats, datePreset, activeFilters]);
 
   const kpis = useMemo(() => calculateKPIs(filteredChats), [filteredChats]);
   const deviceData = useMemo(() => getDeviceBreakdown(filteredChats), [filteredChats]);
@@ -31,6 +48,20 @@ export default function Dashboard() {
         </div>
       </div>
     );
+  }
+
+  const hasActiveFilters = activeFilters.device || activeFilters.channel;
+
+  function clearAllFilters() {
+    setActiveFilters({});
+  }
+
+  function handleDeviceClick(device: string) {
+    setActiveFilters(prev => prev.device === device ? {} : { ...prev, device });
+  }
+
+  function handleChannelClick(channel: string) {
+    setActiveFilters(prev => prev.channel === channel ? {} : { ...prev, channel });
   }
 
   return (
@@ -53,6 +84,32 @@ export default function Dashboard() {
           <option value="allTime">All Time</option>
         </select>
       </div>
+
+      {/* Active Filters */}
+      {hasActiveFilters && (
+        <div className="mb-6 flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-gray-600">Active filters:</span>
+          {activeFilters.device && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+              Device: {activeFilters.device}
+              <button onClick={() => setActiveFilters(prev => ({ ...prev, device: undefined }))} className="hover:text-blue-900">
+                <X size={14} />
+              </button>
+            </span>
+          )}
+          {activeFilters.channel && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+              Channel: {activeFilters.channel}
+              <button onClick={() => setActiveFilters(prev => ({ ...prev, channel: undefined }))} className="hover:text-green-900">
+                <X size={14} />
+              </button>
+            </span>
+          )}
+          <button onClick={clearAllFilters} className="text-sm text-blue-600 hover:text-blue-700 underline">
+            Clear all
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -113,7 +170,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Device Breakdown */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Device Breakdown</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Device Breakdown</h3>
+          <p className="text-xs text-gray-500 mb-4">Click on a device to filter</p>
           {deviceData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -127,9 +185,15 @@ export default function Dashboard() {
                   fill="#8884d8"
                   dataKey="value"
                   isAnimationActive={false}
+                  onClick={(data) => handleDeviceClick(data.name)}
+                  style={{ cursor: 'pointer' }}
                 >
-                  {deviceData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {deviceData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS[index % COLORS.length]}
+                      opacity={activeFilters.device && activeFilters.device !== entry.name ? 0.3 : 1}
+                    />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -142,7 +206,8 @@ export default function Dashboard() {
 
         {/* Lead Source Distribution */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Lead Source Distribution</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Lead Source Distribution</h3>
+          <p className="text-xs text-gray-500 mb-4">Click on a channel to filter</p>
           {leadData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -156,9 +221,15 @@ export default function Dashboard() {
                   fill="#8884d8"
                   dataKey="value"
                   isAnimationActive={false}
+                  onClick={(data) => handleChannelClick(data.name)}
+                  style={{ cursor: 'pointer' }}
                 >
-                  {leadData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {leadData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS[index % COLORS.length]}
+                      opacity={activeFilters.channel && activeFilters.channel !== entry.name ? 0.3 : 1}
+                    />
                   ))}
                 </Pie>
                 <Tooltip />

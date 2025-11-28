@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Search, Download, X, CheckCircle, Clock, AlertCircle, XCircle } from 'lucide-react';
+import { FixedSizeList as List } from 'react-window';
 import { useChats } from '../hooks/useChats';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
@@ -203,107 +204,90 @@ export default function Chats() {
 
       {/* Chat List */}
       <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  File Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Equipment / Repair
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Value
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Channel
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Score
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredChats.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                    No chats found
-                  </td>
-                </tr>
-              ) : (
-                filteredChats.map((chat) => (
-                  <tr
-                    key={chat.id}
-                    onClick={() => setSelectedChat(chat)}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusIcon(chat.status)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900 truncate max-w-xs">
-                        {chat.fileName}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {chat.timestamp ? new Date(chat.timestamp).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4">
-                      {chat.analysis ? (
-                        <div className="text-sm">
-                          <div className="font-medium text-gray-900">
-                            {chat.analysis.equipmentLine || chat.analysis.equipmentType}
-                          </div>
-                          <div className="text-gray-500">{chat.analysis.repairType}</div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {chat.analysis?.negotiationValue
-                        ? `R$ ${chat.analysis.negotiationValue.toFixed(2)}`
-                        : '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {chat.analysis?.channel ? (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                          {chat.analysis.channel}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {chat.analysis?.qualityScore ? (
-                        <span
-                          className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            chat.analysis.qualityScore >= 8
-                              ? 'bg-green-100 text-green-800'
-                              : chat.analysis.qualityScore >= 5
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {chat.analysis.qualityScore}/10
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        {/* Table Header */}
+        <div className="bg-gray-50 border-b border-gray-200 px-6 py-3 grid grid-cols-7 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <div>Status</div>
+          <div>File Name</div>
+          <div>Date</div>
+          <div>Equipment / Repair</div>
+          <div>Value</div>
+          <div>Channel</div>
+          <div>Score</div>
         </div>
+
+        {/* Virtualized List */}
+        {filteredChats.length === 0 ? (
+          <div className="px-6 py-12 text-center text-gray-500">No chats found</div>
+        ) : (
+          <List
+            height={600}
+            itemCount={filteredChats.length}
+            itemSize={80}
+            width="100%"
+          >
+            {({ index, style }: { index: number; style: React.CSSProperties }) => {
+              const chat = filteredChats[index];
+              return (
+                <div
+                  style={style}
+                  onClick={() => setSelectedChat(chat)}
+                  className="px-6 grid grid-cols-7 gap-4 items-center hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
+                >
+                  <div>{getStatusIcon(chat.status)}</div>
+                  <div className="text-sm font-medium text-gray-900 truncate">
+                    {chat.fileName}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {chat.timestamp ? new Date(chat.timestamp).toLocaleDateString() : 'N/A'}
+                  </div>
+                  <div>
+                    {chat.analysis ? (
+                      <div className="text-sm">
+                        <div className="font-medium text-gray-900 truncate">
+                          {chat.analysis.equipmentLine || chat.analysis.equipmentType}
+                        </div>
+                        <div className="text-gray-500 text-xs">{chat.analysis.repairType}</div>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-900">
+                    {chat.analysis?.negotiationValue
+                      ? `R$ ${chat.analysis.negotiationValue.toFixed(2)}`
+                      : '-'}
+                  </div>
+                  <div>
+                    {chat.analysis?.channel ? (
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                        {chat.analysis.channel}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </div>
+                  <div>
+                    {chat.analysis?.qualityScore ? (
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          chat.analysis.qualityScore >= 8
+                            ? 'bg-green-100 text-green-800'
+                            : chat.analysis.qualityScore >= 5
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
+                        {chat.analysis.qualityScore}/10
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </div>
+                </div>
+              );
+            }}
+          </List>
+        )}
       </div>
 
       {/* Chat Detail Slide-over */}
