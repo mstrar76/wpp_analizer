@@ -93,8 +93,54 @@ INSTRUCTIONS:
 - For qualityScore: Consider response time perception, professionalism, problem solving, clarity
 - Be precise with equipment models when mentioned
 - Use "Other" or null for missing/unclear information
+- Respond ONLY with a valid JSON object. Do not include markdown fences, explanations, or trailing text.`;
+}
 
-Return ONLY the JSON object, no additional text.`;
+function stripCodeFences(text: string): string {
+  return text
+    .replace(/```json\s*/gi, '')
+    .replace(/```/g, '')
+    .trim();
+}
+
+function extractJsonObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+
+    if (inString) {
+      if (char === '"' && !escaped) {
+        inString = false;
+      }
+      escaped = char === '\\' && !escaped;
+      if (char !== '\\') {
+        escaped = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === '{') {
+      depth++;
+    } else if (char === '}') {
+      depth--;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -102,13 +148,19 @@ Return ONLY the JSON object, no additional text.`;
  */
 function parseGeminiResponse(responseText: string): AnalysisResult {
   try {
-    // Remove markdown code blocks if present
-    const cleaned = responseText
-      .replace(/```json\n?/g, '')
-      .replace(/```\n?/g, '')
-      .trim();
+    const cleaned = stripCodeFences(responseText);
+    let parsed: any;
 
-    const parsed = JSON.parse(cleaned);
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (innerError) {
+      const jsonBlock = extractJsonObject(cleaned);
+      if (!jsonBlock) {
+        console.error('Gemini response missing JSON object:', cleaned);
+        throw innerError;
+      }
+      parsed = JSON.parse(jsonBlock);
+    }
 
     // Validate and normalize the response
     return {
@@ -124,7 +176,7 @@ function parseGeminiResponse(responseText: string): AnalysisResult {
       summary: parsed.summary || 'No summary available',
     };
   } catch (error) {
-    console.error('Error parsing Gemini response:', error);
+    console.error('Error parsing Gemini response. Raw output:', responseText, error);
     throw new Error('Failed to parse AI response');
   }
 }
