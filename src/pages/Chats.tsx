@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Search, Download, X, CheckCircle, Clock, AlertCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Download, X, CheckCircle, Clock, AlertCircle, XCircle, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useChats } from '../hooks/useChats';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
 import { formatToWhatsAppExport } from '../utils/whatsappParser';
+import { getAllRules } from '../services/db';
+import { reprocessAllChats, reprocessFailedChats } from '../services/processingQueue';
 
 const PAGE_SIZE = 50;
 
@@ -16,6 +18,8 @@ export default function Chats() {
   const [repairFilter, setRepairFilter] = useState('all');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isReprocessingAll, setIsReprocessingAll] = useState(false);
+  const [isReprocessingFailed, setIsReprocessingFailed] = useState(false);
 
   // Get unique values for filters
   const channels = useMemo(() => {
@@ -119,6 +123,40 @@ export default function Chats() {
     }
   }
 
+  async function handleReprocessAll() {
+    if (!confirm('Reprocess ALL chats with the current rules? This will overwrite existing analyses.')) {
+      return;
+    }
+
+    setIsReprocessingAll(true);
+    try {
+      const rules = await getAllRules();
+      await reprocessAllChats(rules);
+      alert('Reprocessing started! Monitor the queue status for progress.');
+    } catch (error: any) {
+      alert(error.message || 'Failed to reprocess chats.');
+    } finally {
+      setIsReprocessingAll(false);
+    }
+  }
+
+  async function handleReprocessFailed() {
+    if (!confirm('Reprocess only FAILED chats?')) {
+      return;
+    }
+
+    setIsReprocessingFailed(true);
+    try {
+      const rules = await getAllRules();
+      await reprocessFailedChats(rules);
+      alert('Reprocessing of failed chats started!');
+    } catch (error: any) {
+      alert(error.message || 'Failed to reprocess failed chats.');
+    } finally {
+      setIsReprocessingFailed(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center h-full">
@@ -132,17 +170,35 @@ export default function Chats() {
 
   return (
     <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Analyzed Chats</h1>
           <p className="text-gray-600 mt-1">
             {filteredChats.length} of {chats.length} chats
           </p>
         </div>
-        <button onClick={exportToJSONL} className="btn-primary flex items-center gap-2">
-          <Download size={18} />
-          Export JSONL
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={handleReprocessAll}
+            className="btn-secondary flex items-center gap-2"
+            disabled={isReprocessingAll}
+          >
+            <RefreshCw className={isReprocessingAll ? 'animate-spin' : ''} size={18} />
+            {isReprocessingAll ? 'Reprocessing...' : 'Reprocess All'}
+          </button>
+          <button
+            onClick={handleReprocessFailed}
+            className="btn-secondary flex items-center gap-2"
+            disabled={isReprocessingFailed}
+          >
+            <RefreshCw className={isReprocessingFailed ? 'animate-spin' : ''} size={18} />
+            {isReprocessingFailed ? 'Reprocessing Failed...' : 'Reprocess Failed'}
+          </button>
+          <button onClick={exportToJSONL} className="btn-primary flex items-center gap-2">
+            <Download size={18} />
+            Export JSONL
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

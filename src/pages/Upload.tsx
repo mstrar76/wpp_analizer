@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { AlertCircle, CheckCircle, FolderOpen } from 'lucide-react';
 import { parseWhatsAppChat } from '../utils/whatsappParser';
-import { addChats, getAllRules } from '../services/db';
+import { addChats, getAllRules, getAllChats, removeDuplicateChats } from '../services/db';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
 import { startProcessing, onProgress, type QueueStats } from '../services/processingQueue';
@@ -18,6 +18,9 @@ export default function Upload() {
   const [parseError, setParseError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
+  const [duplicateCount, setDuplicateCount] = useState(0);
+  const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
+  const [isCleaningDuplicates, setIsCleaningDuplicates] = useState(false);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   function handleDragOver(e: React.DragEvent) {
@@ -121,10 +124,18 @@ export default function Upload() {
     setIsProcessing(true);
     setParseError(null);
     setUploadSuccess(false);
+    setDuplicateCount(0);
     setFolderCount(folderChats.length);
 
     try {
       const chats: Chat[] = [];
+      const existingChats = await getAllChats();
+      const existingKeys = new Set(
+        existingChats
+          .map((chat) => chat.fileName?.trim().toLowerCase())
+          .filter((name): name is string => Boolean(name))
+      );
+      let duplicatesSkipped = 0;
       
       for (const { folderName, file } of folderChats) {
         const content = await file.text();
@@ -135,15 +146,27 @@ export default function Upload() {
         console.log('Parsed result:', parsed ? `${parsed.messages.length} messages` : 'null');
         
         if (parsed && parsed.messages.length > 0) {
+          const normalizedName = folderName.trim().toLowerCase();
+          if (existingKeys.has(normalizedName)) {
+            duplicatesSkipped++;
+            continue;
+          }
+          existingKeys.add(normalizedName);
           chats.push({
             ...parsed,
             status: ProcessingStatus.PENDING,
           });
         }
       }
-      
+
+      setDuplicateCount(duplicatesSkipped);
+
       if (chats.length === 0) {
-        setParseError('No valid WhatsApp chats found in the selected folders');
+        if (duplicatesSkipped > 0) {
+          setParseError('All selected chats were already imported. No new chats added.');
+        } else {
+          setParseError('No valid WhatsApp chats found in the selected folders');
+        }
         return;
       }
 
@@ -174,6 +197,28 @@ export default function Upload() {
       console.error('Upload error:', error);
     } finally {
       setIsProcessing(false);
+    }
+  }
+
+  async function handleRemoveDuplicates() {
+    if (!confirm('Remove duplicate chats based on folder name?')) {
+      return;
+    }
+
+    setIsCleaningDuplicates(true);
+    setCleanupMessage(null);
+
+    try {
+      const removed = await removeDuplicateChats();
+      if (removed === 0) {
+        setCleanupMessage('No duplicate chats were found.');
+      } else {
+        setCleanupMessage(`Removed ${removed} duplicate chat${removed === 1 ? '' : 's'}.`);
+      }
+    } catch (error: any) {
+      setCleanupMessage(error.message || 'Failed to remove duplicates.');
+    } finally {
+      setIsCleaningDuplicates(false);
     }
   }
 
@@ -252,6 +297,11 @@ export default function Upload() {
               <p className="text-sm text-green-700">
                 Analysis started. Check the Dashboard for progress and results.
               </p>
+              {duplicateCount > 0 && (
+                <p className="text-sm text-green-700 mt-2">
+                  Skipped {duplicateCount} duplicate chat{duplicateCount === 1 ? '' : 's'} that were already in your workspace.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -291,6 +341,28 @@ export default function Upload() {
           </div>
         </div>
       )}
+
+      {/* Duplicate cleanup */}
+      <div className="mt-6 card">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900">Duplicate Protection</h3>
+            <p className="text-sm text-gray-600">
+              Uploads automatically skip chats with the same folder name. Use the cleanup button to remove any duplicates already stored.
+            </p>
+          </div>
+          <button
+            onClick={handleRemoveDuplicates}
+            className="btn-secondary self-start sm:self-auto"
+            disabled={isCleaningDuplicates}
+          >
+            {isCleaningDuplicates ? 'Removing duplicates...' : 'Remove duplicates'}
+          </button>
+        </div>
+        {cleanupMessage && (
+          <p className="mt-3 text-sm text-gray-700">{cleanupMessage}</p>
+        )}
+      </div>
 
       {/* Error Message */}
       {parseError && (

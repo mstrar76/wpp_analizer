@@ -150,7 +150,7 @@ export async function analyzeChat(
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash-exp',
+      model: 'gemini-flash-latest',
       generationConfig: {
         temperature: 0.2, // Low temperature for consistent structured output
         maxOutputTokens: 1024,
@@ -187,7 +187,7 @@ export async function analyzeChat(
 export async function testApiKey(apiKey: string): Promise<boolean> {
   try {
     const testAI = new GoogleGenerativeAI(apiKey);
-    const model = testAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = testAI.getGenerativeModel({ model: 'gemini-flash-latest' });
     
     // Simple test prompt
     const result = await model.generateContent('Say "OK"');

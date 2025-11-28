@@ -4,12 +4,30 @@ import { analyzeChat } from './gemini';
 import { updateChat, getChatsByStatus } from './db';
 
 // Queue configuration
-const BATCH_SIZE = 3; // Process 3 chats concurrently
-const BATCH_DELAY_MS = 1000; // 1 second delay between batches
+// Gemini Flash latest has higher rate limits (15 RPM free tier, 1000 RPM paid)
+const BATCH_SIZE = 2; // Process 2 chats concurrently
+const BATCH_DELAY_MS = 1000; // 1 second between batches per user request
 const MAX_RETRIES = 2; // Retry failed analyses
 
 // Queue state
 let isProcessing = false;
+
+const SERVICE_NAME = 'processingQueue';
+
+function logQueueEvent(
+  level: 'info' | 'error',
+  message: string,
+  data: Record<string, unknown> = {}
+): void {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    level,
+    service: SERVICE_NAME,
+    message,
+    ...data,
+  };
+  console[level === 'error' ? 'error' : 'log'](JSON.stringify(logEntry));
+}
 
 // Event callbacks
 type QueueCallback = (stats: QueueStats) => void;
@@ -75,6 +93,11 @@ async function processSingleChat(
   retryCount = 0
 ): Promise<void> {
   try {
+    logQueueEvent('info', 'Starting chat processing', {
+      chatId: chat.id,
+      retryCount,
+    });
+
     // Update status to processing
     chat.status = ProcessingStatus.PROCESSING;
     await updateChat(chat);
@@ -91,12 +114,26 @@ async function processSingleChat(
     
     await updateChat(chat);
     await notifyProgress();
+
+    logQueueEvent('info', 'Chat processed successfully', {
+      chatId: chat.id,
+      processedAt: chat.processedAt,
+    });
   } catch (error: any) {
-    console.error(`Error processing chat ${chat.id}:`, error);
+    logQueueEvent('error', 'Error processing chat', {
+      chatId: chat.id,
+      retryCount,
+      errorMessage: error?.message,
+      stack: error?.stack,
+    });
 
     // Retry logic
     if (retryCount < MAX_RETRIES && !error.message.includes('Invalid API key')) {
-      console.log(`Retrying chat ${chat.id} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+      logQueueEvent('info', 'Retrying chat processing', {
+        chatId: chat.id,
+        nextAttempt: retryCount + 1,
+        maxRetries: MAX_RETRIES,
+      });
       await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2s before retry
       return processSingleChat(chat, rules, retryCount + 1);
     }
@@ -106,6 +143,11 @@ async function processSingleChat(
     chat.error = error.message || 'Unknown error';
     await updateChat(chat);
     await notifyProgress();
+
+    logQueueEvent('error', 'Chat marked as failed', {
+      chatId: chat.id,
+      finalError: chat.error,
+    });
   }
 }
 
@@ -138,6 +180,11 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
       // Get batch
       const batch = pendingChats.slice(0, BATCH_SIZE);
       
+      logQueueEvent('info', 'Processing batch', {
+        batchSize: batch.length,
+        totalPending: pendingChats.length,
+      });
+
       // Process batch
       await processBatch(batch, rules);
 
@@ -156,10 +203,14 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
       onCompleteCallback(stats);
     }
   } catch (error) {
-    console.error('Queue processing error:', error);
+    logQueueEvent('error', 'Queue processing error', {
+      errorMessage: (error as Error)?.message,
+      stack: (error as Error)?.stack,
+    });
   } finally {
     isProcessing = false;
     await notifyProgress();
+    logQueueEvent('info', 'Queue processing finished');
   }
 }
 
@@ -168,10 +219,11 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
  */
 export async function startProcessing(rules: IdentifierRule[]): Promise<void> {
   if (isProcessing) {
-    console.warn('Queue is already processing');
+    logQueueEvent('info', 'Queue already processing');
     return;
   }
 
+  logQueueEvent('info', 'Starting queue processing');
   await processQueue(rules);
 }
 
@@ -228,6 +280,33 @@ export async function reprocessAllChats(rules: IdentifierRule[]): Promise<void> 
   await notifyProgress();
   
   // Start processing
+  await startProcessing(rules);
+}
+
+/**
+ * Reprocess only failed chats
+ */
+export async function reprocessFailedChats(rules: IdentifierRule[]): Promise<void> {
+  const { getAllChats, updateChats } = await import('./db');
+  const allChats = await getAllChats();
+
+  const failedChats = allChats.filter((chat) => chat.status === ProcessingStatus.FAILED);
+
+  if (failedChats.length === 0) {
+    throw new Error('No failed chats to reprocess.');
+  }
+
+  const resettedChats = failedChats.map((chat) => ({
+    ...chat,
+    status: ProcessingStatus.PENDING,
+    analysis: undefined,
+    error: undefined,
+    processedAt: undefined,
+  }));
+
+  await updateChats(resettedChats);
+  await notifyProgress();
+
   await startProcessing(rules);
 }
 

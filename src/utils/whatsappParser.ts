@@ -19,9 +19,12 @@ const WHATSAPP_FORMATS = [
 
 /**
  * Custom format regex for block-based exports:
- * 2025-11-10 15:46:14 from +1 (904) 907-5308 - Lida
+ * 2023-02-19 20:56:30 from CK7uyp8GIAA= (+554197215164) - Lida
+ * 2023-02-19 20:56:30 to +55 41 99721-5164 - Lida
+ * 2023-02-19 20:56:30 from Marcos Roberto Ipad 6 (+554199472882) - Lida
+ * 2023-02-19 20:56:30 notification
  */
-const CUSTOM_BLOCK_HEADER_REGEX = /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+(?:from\s+)?([^\-]+?)(?:\s*-\s*(Lida|Entregue|notification))?$/i;
+const CUSTOM_BLOCK_HEADER_REGEX = /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+(from|to|notification)\s*(.*)$/i;
 
 /**
  * Parse a single WhatsApp message line (standard format)
@@ -69,8 +72,8 @@ function parseMessageLine(line: string): ChatMessage | null {
 /**
  * Parse custom block-based format:
  * ----------------------------------------------------
- * +1 (904) 907-5308
- * 2025-11-10 15:46:14 from +1 (904) 907-5308 - Lida
+ * +55 41 99721-5164
+ * 2023-02-19 20:56:30 from CK7uyp8GIAA= (+554197215164) - Lida
  * 
  * message content here
  * 
@@ -87,7 +90,7 @@ function parseCustomBlockFormat(content: string): ChatMessage[] {
     
     if (lines.length < 2) continue;
     
-    // Look for the timestamp line: 2025-11-10 15:46:14 from +1 (904) 907-5308 - Lida
+    // Look for the timestamp line: 2023-02-19 20:56:30 from/to/notification ...
     let timestampLine = '';
     let timestampLineIndex = -1;
     
@@ -104,10 +107,26 @@ function parseCustomBlockFormat(content: string): ChatMessage[] {
     const match = timestampLine.match(CUSTOM_BLOCK_HEADER_REGEX);
     if (!match) continue;
     
-    const [, dateStr, timeStr, sender, status] = match;
+    const [, dateStr, timeStr, direction, senderInfo] = match;
     
     // Skip notification messages
-    if (status?.toLowerCase() === 'notification') continue;
+    if (direction.toLowerCase() === 'notification') continue;
+    
+    // Extract sender from senderInfo
+    // Format: "CK7uyp8GIAA= (+554197215164) - Lida" or "Marcos Roberto (+554199472882) - Lida" or "+55 41 99721-5164 - Lida"
+    let sender = senderInfo;
+    
+    // Try to extract phone number from parentheses or use the whole thing
+    const phoneMatch = senderInfo.match(/\((\+?\d+)\)/);
+    if (phoneMatch) {
+      sender = phoneMatch[1];
+    } else {
+      // Remove status suffix like "- Lida", "- Recebida", "- Entregue"
+      sender = senderInfo.replace(/\s*-\s*(Lida|Recebida|Entregue|Reproduzida).*$/i, '').trim();
+    }
+    
+    // Mark direction (from = customer, to = business)
+    const isFromCustomer = direction.toLowerCase() === 'from';
     
     // Get message content (lines after the timestamp line)
     const messageLines = lines.slice(timestampLineIndex + 1);
@@ -127,7 +146,7 @@ function parseCustomBlockFormat(content: string): ChatMessage[] {
       
       messages.push({
         date,
-        sender: sender.trim(),
+        sender: isFromCustomer ? sender : 'Atendente',
         content: messageContent,
       });
     } catch (error) {
@@ -142,8 +161,12 @@ function parseCustomBlockFormat(content: string): ChatMessage[] {
  * Detect which format the content is in
  */
 function detectFormat(content: string): 'standard' | 'custom-block' {
-  // Check for custom block format (has separator lines)
-  if (content.includes('--------------------') && CUSTOM_BLOCK_HEADER_REGEX.test(content)) {
+  // Check for custom block format (has separator lines with 20+ dashes)
+  // and timestamp lines like "2023-02-19 20:56:30 from/to/notification"
+  const hasSeparators = /^-{20,}$/m.test(content);
+  const hasCustomTimestamp = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+(from|to|notification)/m.test(content);
+  
+  if (hasSeparators && hasCustomTimestamp) {
     return 'custom-block';
   }
   return 'standard';

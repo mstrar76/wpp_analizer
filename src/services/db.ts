@@ -133,6 +133,14 @@ export async function deleteAllChats(): Promise<void> {
   await tx.done;
 }
 
+export async function deleteChats(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await getDB();
+  const tx = db.transaction('chats', 'readwrite');
+  await Promise.all(ids.map((id) => tx.store.delete(id)));
+  await tx.done;
+}
+
 /**
  * Get chats by status
  */
@@ -147,6 +155,40 @@ export async function getChatsByStatus(status: string): Promise<Chat[]> {
 export async function countChats(): Promise<number> {
   const db = await getDB();
   return db.count('chats');
+}
+
+export async function removeDuplicateChats(): Promise<number> {
+  const db = await getDB();
+  const tx = db.transaction('chats', 'readwrite');
+  const store = tx.store;
+  const allChats = await store.getAll();
+  const seen = new Map<string, Chat>();
+  const toDelete: string[] = [];
+
+  for (const chat of allChats) {
+    const key = chat.fileName?.trim();
+    if (!key) continue;
+
+    const existing = seen.get(key);
+    if (!existing) {
+      seen.set(key, chat);
+      continue;
+    }
+
+    const existingUploaded = existing.uploadedAt ?? 0;
+    const currentUploaded = chat.uploadedAt ?? 0;
+
+    if (currentUploaded >= existingUploaded) {
+      toDelete.push(chat.id);
+    } else {
+      toDelete.push(existing.id);
+      seen.set(key, chat);
+    }
+  }
+
+  await Promise.all(toDelete.map((id) => store.delete(id)));
+  await tx.done;
+  return toDelete.length;
 }
 
 // ========== RULE OPERATIONS ==========
