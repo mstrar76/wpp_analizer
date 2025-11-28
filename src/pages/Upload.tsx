@@ -1,19 +1,24 @@
 import { useState, useRef } from 'react';
-import { Upload as UploadIcon, AlertCircle, CheckCircle } from 'lucide-react';
-import { parseWhatsAppChats } from '../utils/whatsappParser';
+import { AlertCircle, CheckCircle, FolderOpen } from 'lucide-react';
+import { parseWhatsAppChat } from '../utils/whatsappParser';
 import { addChats, getAllRules } from '../services/db';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
 import { startProcessing, onProgress, type QueueStats } from '../services/processingQueue';
 
+interface FolderChat {
+  folderName: string;
+  file: File;
+}
+
 export default function Upload() {
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [folderCount, setFolderCount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault();
@@ -29,44 +34,102 @@ export default function Upload() {
     e.preventDefault();
     setIsDragging(false);
     
-    const files = Array.from(e.dataTransfer.files).filter(
-      (file) => file.name.endsWith('.txt')
+    const items = e.dataTransfer.items;
+    const folderChats: FolderChat[] = [];
+    
+    // Process dropped items to find folders with .txt files
+    const processEntry = async (entry: FileSystemEntry, parentPath: string = ''): Promise<void> => {
+      if (entry.isDirectory) {
+        const dirReader = (entry as FileSystemDirectoryEntry).createReader();
+        const entries = await new Promise<FileSystemEntry[]>((resolve) => {
+          dirReader.readEntries((entries) => resolve(entries));
+        });
+        
+        for (const childEntry of entries) {
+          await processEntry(childEntry, entry.name);
+        }
+      } else if (entry.isFile && entry.name.endsWith('.txt')) {
+        const file = await new Promise<File>((resolve) => {
+          (entry as FileSystemFileEntry).file((file) => resolve(file));
+        });
+        
+        // Use parent folder name as chat identifier
+        const folderName = parentPath || entry.name.replace('.txt', '');
+        folderChats.push({ folderName, file });
+      }
+    };
+    
+    for (let i = 0; i < items.length; i++) {
+      const entry = items[i].webkitGetAsEntry();
+      if (entry) {
+        await processEntry(entry);
+      }
+    }
+    
+    if (folderChats.length > 0) {
+      await processFolderChats(folderChats);
+    } else {
+      setParseError('No .txt files found in the dropped folders. Make sure each subfolder contains a WhatsApp export .txt file.');
+    }
+  }
+
+  async function handleFolderSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    // Group files by their parent folder
+    const folderMap = new Map<string, File>();
+    
+    for (const file of Array.from(files)) {
+      if (!file.name.endsWith('.txt')) continue;
+      
+      // webkitRelativePath gives us "parentFolder/subfolder/file.txt"
+      const pathParts = file.webkitRelativePath.split('/');
+      
+      // Get the immediate parent folder name (subfolder containing the .txt)
+      // Structure: rootFolder/chatSubfolder/file.txt
+      if (pathParts.length >= 2) {
+        const folderName = pathParts[pathParts.length - 2]; // Parent folder of the .txt file
+        folderMap.set(folderName, file);
+      }
+    }
+    
+    const folderChats: FolderChat[] = Array.from(folderMap.entries()).map(
+      ([folderName, file]) => ({ folderName, file })
     );
     
-    if (files.length > 0) {
-      await processFiles(files);
+    if (folderChats.length > 0) {
+      await processFolderChats(folderChats);
     } else {
-      setParseError('Please drop .txt files only');
+      setParseError('No valid chat folders found. Each subfolder should contain a .txt WhatsApp export file.');
     }
   }
 
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      await processFiles(Array.from(files));
-    }
-  }
-
-  async function processFiles(files: File[]) {
+  async function processFolderChats(folderChats: FolderChat[]) {
     setIsProcessing(true);
     setParseError(null);
     setUploadSuccess(false);
-    setUploadedFiles(files);
+    setFolderCount(folderChats.length);
 
     try {
-      // Parse files
-      const parsedChats = await parseWhatsAppChats(files);
+      const chats: Chat[] = [];
       
-      if (parsedChats.length === 0) {
-        setParseError('No valid WhatsApp chats found in the selected files');
+      for (const { folderName, file } of folderChats) {
+        const content = await file.text();
+        const parsed = parseWhatsAppChat(content, folderName);
+        
+        if (parsed && parsed.messages.length > 0) {
+          chats.push({
+            ...parsed,
+            status: ProcessingStatus.PENDING,
+          });
+        }
+      }
+      
+      if (chats.length === 0) {
+        setParseError('No valid WhatsApp chats found in the selected folders');
         return;
       }
-
-      // Convert to Chat objects with pending status
-      const chats: Chat[] = parsedChats.map((parsed) => ({
-        ...parsed,
-        status: ProcessingStatus.PENDING,
-      }));
 
       // Save to database
       await addChats(chats);
@@ -84,14 +147,14 @@ export default function Upload() {
       
       setUploadSuccess(true);
       setTimeout(() => {
-        setUploadedFiles([]);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+        setFolderCount(0);
+        if (folderInputRef.current) {
+          folderInputRef.current.value = '';
         }
       }, 3000);
       
     } catch (error: any) {
-      setParseError(error.message || 'Failed to process files');
+      setParseError(error.message || 'Failed to process folders');
       console.error('Upload error:', error);
     } finally {
       setIsProcessing(false);
@@ -99,14 +162,14 @@ export default function Upload() {
   }
 
   function handleBrowseClick() {
-    fileInputRef.current?.click();
+    folderInputRef.current?.click();
   }
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Data</h1>
       <p className="text-gray-600 mb-8">
-        Upload your WhatsApp chat export files (.txt format) to analyze
+        Select a folder containing subfolders with WhatsApp chat exports (.txt files)
       </p>
 
       {/* Upload Area */}
@@ -121,29 +184,30 @@ export default function Upload() {
         }`}
       >
         <div className="text-center py-12">
-          <UploadIcon
+          <FolderOpen
             size={64}
             className={`mx-auto mb-4 ${
               isDragging ? 'text-blue-500' : 'text-gray-400'
             }`}
           />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Drag & drop your files here
+            Drag & drop a folder here
           </h3>
           <p className="text-gray-600 mb-4">or</p>
           <button onClick={handleBrowseClick} className="btn-primary">
-            Browse Files
+            Select Folder
           </button>
           <input
-            ref={fileInputRef}
+            ref={folderInputRef}
             type="file"
-            multiple
-            accept=".txt"
-            onChange={handleFileSelect}
+            /* @ts-expect-error webkitdirectory is not in types */
+            webkitdirectory=""
+            directory=""
+            onChange={handleFolderSelect}
             className="hidden"
           />
           <p className="text-sm text-gray-500 mt-4">
-            Supports multiple .txt files (WhatsApp export format)
+            Each subfolder should contain one .txt WhatsApp export file
           </p>
         </div>
       </div>
@@ -154,7 +218,7 @@ export default function Upload() {
           <div className="flex items-center gap-3">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
             <p className="text-blue-900">
-              Processing {uploadedFiles.length} file(s)...
+              Processing {folderCount} chat folder(s)...
             </p>
           </div>
         </div>
@@ -167,7 +231,7 @@ export default function Upload() {
             <CheckCircle className="text-green-600 flex-shrink-0" size={24} />
             <div className="flex-1">
               <p className="text-green-900 font-medium mb-1">
-                Successfully uploaded {uploadedFiles.length} file(s)!
+                Successfully uploaded {folderCount} chat(s)!
               </p>
               <p className="text-sm text-green-700">
                 Analysis started. Check the Dashboard for progress and results.
@@ -227,31 +291,51 @@ export default function Upload() {
 
       {/* Instructions */}
       <div className="mt-8 card bg-gray-50">
-        <h3 className="font-semibold text-gray-900 mb-4">How to export WhatsApp chats:</h3>
+        <h3 className="font-semibold text-gray-900 mb-4">How to organize your chat exports:</h3>
         <ol className="space-y-2 text-sm text-gray-700">
           <li className="flex items-start gap-2">
             <span className="font-semibold">1.</span>
-            <span>Open WhatsApp on your phone</span>
+            <span>Create a main folder for all your chats (e.g., "WhatsApp Exports")</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="font-semibold">2.</span>
-            <span>Open the chat you want to analyze</span>
+            <span>Inside, create a subfolder for each chat (e.g., "Cliente João", "Cliente Maria")</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="font-semibold">3.</span>
-            <span>Tap on the chat name/group name at the top</span>
+            <span>Place the exported .txt file inside each subfolder</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="font-semibold">4.</span>
-            <span>Scroll down and tap "Export Chat"</span>
+            <span>Select the main folder here - all subfolders will be imported automatically</span>
+          </li>
+        </ol>
+        
+        <div className="mt-4 p-3 bg-white rounded border border-gray-200">
+          <p className="text-xs font-mono text-gray-600">
+            📁 WhatsApp Exports/<br/>
+            &nbsp;&nbsp;&nbsp;├── 📁 Cliente João/<br/>
+            &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 chat.txt<br/>
+            &nbsp;&nbsp;&nbsp;├── 📁 Cliente Maria/<br/>
+            &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 conversa.txt<br/>
+            &nbsp;&nbsp;&nbsp;└── 📁 Cliente Pedro/<br/>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── 📄 export.txt
+          </p>
+        </div>
+
+        <h4 className="font-semibold text-gray-900 mt-6 mb-3">How to export from WhatsApp:</h4>
+        <ol className="space-y-2 text-sm text-gray-700">
+          <li className="flex items-start gap-2">
+            <span className="font-semibold">1.</span>
+            <span>Open WhatsApp → Open the chat → Tap chat name at top</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="font-semibold">5.</span>
-            <span>Choose "Without Media" and save the .txt file</span>
+            <span className="font-semibold">2.</span>
+            <span>Scroll down → "Export Chat" → "Without Media"</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="font-semibold">6.</span>
-            <span>Upload the file here</span>
+            <span className="font-semibold">3.</span>
+            <span>Save the .txt file to the appropriate subfolder</span>
           </li>
         </ol>
       </div>

@@ -45,8 +45,10 @@ function parseMessageLine(line: string): ChatMessage | null {
 
 /**
  * Parse WhatsApp chat file content
+ * @param content - The raw text content of the WhatsApp export
+ * @param fileName - The name to use for this chat (folder name or file name)
  */
-export function parseWhatsAppChat(fileName: string, content: string): RawChatFile | null {
+export function parseWhatsAppChat(content: string, fileName: string): RawChatFile | null {
   const lines = content.split('\n');
   const messages: ChatMessage[] = [];
   let currentMessage: ChatMessage | null = null;
@@ -105,7 +107,7 @@ export function parseWhatsAppChats(files: File[]): Promise<RawChatFile[]> {
     files.map(async (file) => {
       try {
         const content = await file.text();
-        const parsed = parseWhatsAppChat(file.name, content);
+        const parsed = parseWhatsAppChat(content, file.name);
         return parsed;
       } catch (error) {
         console.error(`Error reading file ${file.name}:`, error);
