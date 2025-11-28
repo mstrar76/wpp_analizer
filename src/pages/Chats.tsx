@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
-import { Search, Download, X, CheckCircle, Clock, AlertCircle, XCircle } from 'lucide-react';
-import { FixedSizeList as List } from 'react-window';
+import { Search, Download, X, CheckCircle, Clock, AlertCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useChats } from '../hooks/useChats';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
 import { formatToWhatsAppExport } from '../utils/whatsappParser';
+
+const PAGE_SIZE = 50;
 
 export default function Chats() {
   const { chats, loading } = useChats();
@@ -14,6 +15,7 @@ export default function Chats() {
   const [deviceFilter, setDeviceFilter] = useState('all');
   const [repairFilter, setRepairFilter] = useState('all');
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Get unique values for filters
   const channels = useMemo(() => {
@@ -72,6 +74,19 @@ export default function Chats() {
       return true;
     });
   }, [chats, searchQuery, statusFilter, channelFilter, deviceFilter, repairFilter]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredChats.length / PAGE_SIZE);
+  const paginatedChats = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredChats.slice(start, start + PAGE_SIZE);
+  }, [filteredChats, currentPage]);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    if (currentPage !== 1) setCurrentPage(1);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, statusFilter, channelFilter, deviceFilter, repairFilter]);
 
   function exportToJSONL() {
     const data = filteredChats
@@ -204,89 +219,108 @@ export default function Chats() {
 
       {/* Chat List */}
       <div className="card overflow-hidden">
-        {/* Table Header */}
-        <div className="bg-gray-50 border-b border-gray-200 px-6 py-3 grid grid-cols-7 gap-4 text-xs font-medium text-gray-500 uppercase tracking-wider">
-          <div>Status</div>
-          <div>File Name</div>
-          <div>Date</div>
-          <div>Equipment / Repair</div>
-          <div>Value</div>
-          <div>Channel</div>
-          <div>Score</div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">File Name</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipment / Repair</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Channel</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {paginatedChats.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-gray-500">No chats found</td>
+                </tr>
+              ) : (
+                paginatedChats.map((chat) => (
+                  <tr
+                    key={chat.id}
+                    onClick={() => setSelectedChat(chat)}
+                    className="hover:bg-gray-50 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3">{getStatusIcon(chat.status)}</td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{chat.fileName}</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-500">
+                      {chat.timestamp ? new Date(chat.timestamp).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {chat.analysis ? (
+                        <div className="text-sm">
+                          <div className="font-medium text-gray-900 truncate max-w-[150px]">
+                            {chat.analysis.equipmentLine || chat.analysis.equipmentType}
+                          </div>
+                          <div className="text-gray-500 text-xs">{chat.analysis.repairType}</div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900">
+                      {chat.analysis?.negotiationValue ? `R$ ${chat.analysis.negotiationValue.toFixed(2)}` : '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {chat.analysis?.channel ? (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                          {chat.analysis.channel}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {chat.analysis?.qualityScore ? (
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          chat.analysis.qualityScore >= 8 ? 'bg-green-100 text-green-800' :
+                          chat.analysis.qualityScore >= 5 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {chat.analysis.qualityScore}/10
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
-        {/* Virtualized List */}
-        {filteredChats.length === 0 ? (
-          <div className="px-6 py-12 text-center text-gray-500">No chats found</div>
-        ) : (
-          <List
-            height={600}
-            itemCount={filteredChats.length}
-            itemSize={80}
-            width="100%"
-          >
-            {({ index, style }: { index: number; style: React.CSSProperties }) => {
-              const chat = filteredChats[index];
-              return (
-                <div
-                  style={style}
-                  onClick={() => setSelectedChat(chat)}
-                  className="px-6 grid grid-cols-7 gap-4 items-center hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
-                >
-                  <div>{getStatusIcon(chat.status)}</div>
-                  <div className="text-sm font-medium text-gray-900 truncate">
-                    {chat.fileName}
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {chat.timestamp ? new Date(chat.timestamp).toLocaleDateString() : 'N/A'}
-                  </div>
-                  <div>
-                    {chat.analysis ? (
-                      <div className="text-sm">
-                        <div className="font-medium text-gray-900 truncate">
-                          {chat.analysis.equipmentLine || chat.analysis.equipmentType}
-                        </div>
-                        <div className="text-gray-500 text-xs">{chat.analysis.repairType}</div>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </div>
-                  <div className="text-sm text-gray-900">
-                    {chat.analysis?.negotiationValue
-                      ? `R$ ${chat.analysis.negotiationValue.toFixed(2)}`
-                      : '-'}
-                  </div>
-                  <div>
-                    {chat.analysis?.channel ? (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                        {chat.analysis.channel}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </div>
-                  <div>
-                    {chat.analysis?.qualityScore ? (
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          chat.analysis.qualityScore >= 8
-                            ? 'bg-green-100 text-green-800'
-                            : chat.analysis.qualityScore >= 5
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {chat.analysis.qualityScore}/10
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
-                  </div>
-                </div>
-              );
-            }}
-          </List>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              Showing {((currentPage - 1) * PAGE_SIZE) + 1} to {Math.min(currentPage * PAGE_SIZE, filteredChats.length)} of {filteredChats.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
