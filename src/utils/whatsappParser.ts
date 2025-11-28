@@ -1,16 +1,39 @@
 import type { ChatMessage, RawChatFile } from '../types';
 
 /**
- * Parse WhatsApp export format: [dd/mm/yy, hh:mm:ss] Sender: Message
- * Also supports alternative formats: [dd/mm/yyyy, hh:mm:ss] or [dd/mm/yy hh:mm:ss]
+ * Multiple WhatsApp export formats:
+ * - [dd/mm/yy, hh:mm:ss] Sender: Message (with brackets)
+ * - [dd/mm/yyyy, hh:mm:ss] Sender: Message
+ * - dd/mm/yy hh:mm - Sender: Message (without brackets, Brazilian format)
+ * - dd/mm/yyyy hh:mm - Sender: Message
+ * - dd/mm/yy, hh:mm - Sender: Message
  */
-const WHATSAPP_MESSAGE_REGEX = /^\[(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s(\d{1,2}:\d{2}(?::\d{2})?)\]\s([^:]+):\s(.+)$/;
+const WHATSAPP_FORMATS = [
+  // Format with brackets: [dd/mm/yy, hh:mm:ss] Sender: Message
+  /^\[(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s(\d{1,2}:\d{2}(?::\d{2})?)\]\s([^:]+):\s(.+)$/,
+  // Format without brackets: dd/mm/yy hh:mm - Sender: Message
+  /^(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s(\d{1,2}:\d{2}(?::\d{2})?)\s-\s([^:]+):\s(.+)$/,
+  // Format with dash separator: dd/mm/yy, hh:mm - Sender: Message  
+  /^(\d{1,2}\/\d{1,2}\/\d{2,4}),?\s(\d{1,2}:\d{2}(?::\d{2})?)\s+-\s+([^:]+):\s*(.+)$/,
+];
 
 /**
- * Parse a single WhatsApp message line
+ * Custom format regex for block-based exports:
+ * 2025-11-10 15:46:14 from +1 (904) 907-5308 - Lida
+ */
+const CUSTOM_BLOCK_HEADER_REGEX = /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+(?:from\s+)?([^\-]+?)(?:\s*-\s*(Lida|Entregue|notification))?$/i;
+
+/**
+ * Parse a single WhatsApp message line (standard format)
  */
 function parseMessageLine(line: string): ChatMessage | null {
-  const match = line.match(WHATSAPP_MESSAGE_REGEX);
+  let match: RegExpMatchArray | null = null;
+  
+  // Try each format until one matches
+  for (const regex of WHATSAPP_FORMATS) {
+    match = line.match(regex);
+    if (match) break;
+  }
   
   if (!match) {
     return null;
@@ -44,42 +67,138 @@ function parseMessageLine(line: string): ChatMessage | null {
 }
 
 /**
+ * Parse custom block-based format:
+ * ----------------------------------------------------
+ * +1 (904) 907-5308
+ * 2025-11-10 15:46:14 from +1 (904) 907-5308 - Lida
+ * 
+ * message content here
+ * 
+ * ----------------------------------------------------
+ */
+function parseCustomBlockFormat(content: string): ChatMessage[] {
+  const messages: ChatMessage[] = [];
+  
+  // Split by separator line
+  const blocks = content.split(/^-{20,}$/m);
+  
+  for (const block of blocks) {
+    const lines = block.trim().split('\n').map(l => l.trim()).filter(l => l);
+    
+    if (lines.length < 2) continue;
+    
+    // Look for the timestamp line: 2025-11-10 15:46:14 from +1 (904) 907-5308 - Lida
+    let timestampLine = '';
+    let timestampLineIndex = -1;
+    
+    for (let i = 0; i < lines.length; i++) {
+      if (CUSTOM_BLOCK_HEADER_REGEX.test(lines[i])) {
+        timestampLine = lines[i];
+        timestampLineIndex = i;
+        break;
+      }
+    }
+    
+    if (!timestampLine || timestampLineIndex === -1) continue;
+    
+    const match = timestampLine.match(CUSTOM_BLOCK_HEADER_REGEX);
+    if (!match) continue;
+    
+    const [, dateStr, timeStr, sender, status] = match;
+    
+    // Skip notification messages
+    if (status?.toLowerCase() === 'notification') continue;
+    
+    // Get message content (lines after the timestamp line)
+    const messageLines = lines.slice(timestampLineIndex + 1);
+    const messageContent = messageLines.join('\n').trim();
+    
+    // Skip empty messages
+    if (!messageContent) continue;
+    
+    try {
+      // Parse date (yyyy-mm-dd)
+      const [year, month, day] = dateStr.split('-').map(Number);
+      
+      // Parse time (hh:mm:ss)
+      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+      
+      const date = new Date(year, month - 1, day, hours, minutes, seconds);
+      
+      messages.push({
+        date,
+        sender: sender.trim(),
+        content: messageContent,
+      });
+    } catch (error) {
+      console.error('Error parsing custom block:', error);
+    }
+  }
+  
+  return messages;
+}
+
+/**
+ * Detect which format the content is in
+ */
+function detectFormat(content: string): 'standard' | 'custom-block' {
+  // Check for custom block format (has separator lines)
+  if (content.includes('--------------------') && CUSTOM_BLOCK_HEADER_REGEX.test(content)) {
+    return 'custom-block';
+  }
+  return 'standard';
+}
+
+/**
  * Parse WhatsApp chat file content
  * @param content - The raw text content of the WhatsApp export
  * @param fileName - The name to use for this chat (folder name or file name)
  */
 export function parseWhatsAppChat(content: string, fileName: string): RawChatFile | null {
-  const lines = content.split('\n');
-  const messages: ChatMessage[] = [];
-  let currentMessage: ChatMessage | null = null;
+  // Detect format and parse accordingly
+  const format = detectFormat(content);
+  console.log('Detected format:', format, 'for file:', fileName);
+  
+  let messages: ChatMessage[] = [];
+  
+  if (format === 'custom-block') {
+    // Parse custom block format
+    messages = parseCustomBlockFormat(content);
+  } else {
+    // Parse standard WhatsApp format
+    const lines = content.split('\n');
+    let currentMessage: ChatMessage | null = null;
 
-  for (const line of lines) {
-    const trimmedLine = line.trim();
-    
-    // Skip empty lines
-    if (!trimmedLine) {
-      continue;
-    }
-
-    // Try to parse as a new message
-    const parsedMessage = parseMessageLine(trimmedLine);
-    
-    if (parsedMessage) {
-      // Save previous message if exists
-      if (currentMessage) {
-        messages.push(currentMessage);
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      // Skip empty lines
+      if (!trimmedLine) {
+        continue;
       }
-      currentMessage = parsedMessage;
-    } else if (currentMessage) {
-      // This is a continuation of the previous message (multi-line message)
-      currentMessage.content += '\n' + trimmedLine;
+
+      // Try to parse as a new message
+      const parsedMessage = parseMessageLine(trimmedLine);
+      
+      if (parsedMessage) {
+        // Save previous message if exists
+        if (currentMessage) {
+          messages.push(currentMessage);
+        }
+        currentMessage = parsedMessage;
+      } else if (currentMessage) {
+        // This is a continuation of the previous message (multi-line message)
+        currentMessage.content += '\n' + trimmedLine;
+      }
+    }
+
+    // Add the last message
+    if (currentMessage) {
+      messages.push(currentMessage);
     }
   }
 
-  // Add the last message
-  if (currentMessage) {
-    messages.push(currentMessage);
-  }
+  console.log('Parsed messages count:', messages.length);
 
   // If no messages were parsed, return null
   if (messages.length === 0) {
@@ -122,7 +241,10 @@ export function parseWhatsAppChats(files: File[]): Promise<RawChatFile[]> {
  */
 export function isValidWhatsAppFile(content: string): boolean {
   const lines = content.split('\n').slice(0, 10); // Check first 10 lines
-  return lines.some((line) => WHATSAPP_MESSAGE_REGEX.test(line.trim()));
+  return lines.some((line) => {
+    const trimmed = line.trim();
+    return WHATSAPP_FORMATS.some(regex => regex.test(trimmed));
+  });
 }
 
 /**

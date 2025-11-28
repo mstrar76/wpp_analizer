@@ -80,19 +80,31 @@ export default function Upload() {
     // Group files by their parent folder
     const folderMap = new Map<string, File>();
     
+    console.log('Total files found:', files.length);
+    
     for (const file of Array.from(files)) {
+      console.log('File:', file.name, 'Path:', file.webkitRelativePath);
+      
       if (!file.name.endsWith('.txt')) continue;
       
-      // webkitRelativePath gives us "parentFolder/subfolder/file.txt"
+      // webkitRelativePath gives us "rootFolder/chatSubfolder/file.txt"
+      // or could be "rootFolder/file.txt" if .txt is directly in root
       const pathParts = file.webkitRelativePath.split('/');
       
+      console.log('Path parts:', pathParts);
+      
       // Get the immediate parent folder name (subfolder containing the .txt)
-      // Structure: rootFolder/chatSubfolder/file.txt
+      // If path is "root/subfolder/file.txt" -> use "subfolder"
+      // If path is "root/file.txt" -> use "root"
       if (pathParts.length >= 2) {
-        const folderName = pathParts[pathParts.length - 2]; // Parent folder of the .txt file
+        // Use the folder directly containing the .txt file
+        const folderName = pathParts[pathParts.length - 2];
+        console.log('Using folder name:', folderName);
         folderMap.set(folderName, file);
       }
     }
+    
+    console.log('Folder map size:', folderMap.size);
     
     const folderChats: FolderChat[] = Array.from(folderMap.entries()).map(
       ([folderName, file]) => ({ folderName, file })
@@ -101,7 +113,7 @@ export default function Upload() {
     if (folderChats.length > 0) {
       await processFolderChats(folderChats);
     } else {
-      setParseError('No valid chat folders found. Each subfolder should contain a .txt WhatsApp export file.');
+      setParseError(`No valid chat folders found. Found ${files.length} files but none were .txt files in subfolders.`);
     }
   }
 
@@ -116,7 +128,11 @@ export default function Upload() {
       
       for (const { folderName, file } of folderChats) {
         const content = await file.text();
+        console.log('Parsing chat:', folderName, 'Content length:', content.length);
+        console.log('First 500 chars:', content.substring(0, 500));
+        
         const parsed = parseWhatsAppChat(content, folderName);
+        console.log('Parsed result:', parsed ? `${parsed.messages.length} messages` : 'null');
         
         if (parsed && parsed.messages.length > 0) {
           chats.push({
