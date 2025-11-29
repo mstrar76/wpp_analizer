@@ -201,15 +201,23 @@ export async function analyzeChat(
   }
 
   try {
+    const prompt = buildAnalysisPrompt(messages, rules);
     const model = genAI.getGenerativeModel({
       model: 'gemini-flash-latest',
+      systemInstruction: {
+        role: 'system',
+        parts: [
+          {
+            text: 'You are a strict JSON generator. Always respond with a single valid JSON object and nothing else.',
+          },
+        ],
+      },
       generationConfig: {
-        temperature: 0.2, // Low temperature for consistent structured output
-        maxOutputTokens: 1024,
+        temperature: 0.2,
+        maxOutputTokens: 4196,
       },
     });
 
-    const prompt = buildAnalysisPrompt(messages, rules);
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();

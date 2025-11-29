@@ -1,0 +1,488 @@
+----------------------------------------------------
+Amauri Os 27893
+2023-02-13 14:26:10 notification
+
+As mensagens para este chat e as chamadas agora são protegidas com criptografia de ponta a ponta
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-13 14:26:10 to Amauri Os 27893 - Lida
+
+Oii tudo bem? Aqui é Marina do itelas. O senhor acabou de passar aqui deixar um aparelho pra gente, só passando pra avisar que já damos retorno do orçamento pro senhor ☺️
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-13 14:27:44 from Amauri Os 27893 (+554192857821) - Lida
+
+Ok
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-13 15:52:31 from Amauri Os 27893 (+554192857821) - Lida
+
+Oi Marina, tudo bem, conseguiram fazer o orçamento?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-13 15:54:38 to Amauri Os 27893 - Lida
+
+olá, estamos ainda tentando ver o diagnostico
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-13 15:54:58 from Amauri Os 27893 (+554192857821) - Lida
+
+Ok obrigado
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-13 15:55:45 from Amauri Os 27893 (+554192857821) - Lida
+
+Esta mensagem foi excluída
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 09:56:37 from Amauri Os 27893 (+554192857821) - Lida
+
+Bom dia, como ficou o orçamento do telefone?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 10:03:10 notification
+
+Chamada de voz perdida à(s) 10:03
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 10:06:09 to Amauri Os 27893 - Lida
+
+bom dia !tudo bem ? Amauri estamos ainda fazendo a analise ainda , pois esta bem dificil achar o defeito dele. vamos fazer um backup dele pelo computador. Podemos tentar fazer restauração no aparelho?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 10:16:09 from Amauri Os 27893 (+554192857821) - Lida
+
+Sim
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 10:16:44 from Amauri Os 27893 (+554192857821) - Lida
+
+Se não perder as fotos
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 14:16:02 to Amauri Os 27893 - Lida
+
+Salvamos tudo, iremos restaurar, mas precisaremos  da senha do iCloud dele. para ativar após a restauraçao
+é o ultimo teste, pois até o momento não foi possivel encontrar a causa dos reinicios
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 14:19:21 from Amauri Os 27893 (+554192857821) - Lida
+
+Onde tem esse iCloud?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 14:54:33 to Amauri Os 27893 - Lida
+
+É a senha da Apple. O e-mail guardamos aqui
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 14:57:13 from Amauri Os 27893 (+554192857821) - Lida
+
+Assim que chegar em casa pergunto pra ela o iCloud
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 14:57:29 to Amauri Os 27893 - Lida
+
+Ok
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 16:26:09 from Amauri Os 27893 (+554192857821) - Lida
+
+Ela não lembra
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 16:26:20 from Amauri Os 27893 (+554192857821) - Lida
+
+O iCloud
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 16:41:00 to Amauri Os 27893 - Reproduzida
+
+782272cb-e2a0-4f67-8271-39b2307b3eea.opus (Áudio)
+01:09
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 16:57:34 from Amauri Os 27893 (+554192857821) - Reproduzida
+
+66ae5168-ecba-4b5e-9656-23e84a390916.opus (Áudio)
+00:37
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 17:00:28 to Amauri Os 27893 - Reproduzida
+
+e4c9f44f-123e-437a-b17e-3ffebffd7ae9.opus (Áudio)
+00:42
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 17:00:47 to Amauri Os 27893 - Reproduzida
+
+c7788d0f-5a1b-4432-abef-c692cae630eb.opus (Áudio)
+00:10
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 17:02:35 from Amauri Os 27893 (+554192857821) - Reproduzida
+
+1917aba8-b311-4efc-9d4b-6d0a4d633469.opus (Áudio)
+00:30
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 17:05:30 to Amauri Os 27893 - Lida
+
+Beleza.
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-14 17:05:37 to Amauri Os 27893 - Lida
+
+se der conserto, não será necessário
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-15 11:24:04 from Amauri Os 27893 (+554192857821) - Reproduzida
+
+7e3f16a3-5b2b-4ca5-9b63-c633b9f5c6cd.opus (Áudio)
+00:12
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-15 11:24:24 from Amauri Os 27893 (+554192857821) - Reproduzida
+
+ada24732-6a03-4d7f-b62f-75a7edc963bd.opus (Áudio)
+00:16
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-15 11:58:15 to Amauri Os 27893 - Lida
+
+bom dia, tudo bem? pode ser que sim fique pronto ate sexta. Mas vamos avisando o senhor. por ser reparo em placa demora uns dias
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-15 11:58:54 to Amauri Os 27893 - Lida
+
+Trata-se de um  defeito na placa principal do aparelho. Mais especificamente no circuito responsável pelo áudio. Este defeito normalmente é provocado por quedas, que causa uma falha no funcionamento do audio e funções relacionadas.
+
+Felizmente em nossa loja possuímos laboratório equipado com equipamentos adequados para reparar este tipo de problema.
+⚒- Possuímos laboratório próprio para placas, não utilizamos terceiros, portanto nosso prazo é menor que a concorrência.
+ - Nosso laboratório tem o melhor índice de sucesso em reparos da região, com mais de 90% dos reparos bem sucedidos.
+ - Seu dispositivo será reparado por técnicos que conhecem profundamente o funcionamento e características dele.  
+ - Além do serviço contratado, também verificamos vários itens no aparelho, e efetuamos uma limpeza interna e externa no mesmo.
+🥇- Técnicos certificados, com CFT e treinados constantemente.
+
+⏰  - Este serviço leva de 2 á 3 dias úteis.
+
+O valor do reparo da placa de seu iPhone 7 é:
+💳 -R$ 345,00 Parcelado em até 5x no crédito.
+💵 - ou com desconto à vista R$ 300,00 no débito ou dinheiro
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 10:09:22 from Amauri Os 27893 (+554192857821) - Lida
+
+Bom dia, alguma coisa sobre o concerto do celular?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 10:15:01 to Amauri Os 27893 - Lida
+
+bom dia tudo bem ? Amauri seu iphone ligou, só precisamos da senha do icloud para darmos continuidade.
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 10:15:58 from Amauri Os 27893 (+554192857821) - Lida
+
+Não lembro a senha, tem como vc criar outra?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 10:16:19 from Amauri Os 27893 (+554192857821) - Lida
+
+Será que vai ficar pronto hoje?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 10:28:34 to Amauri Os 27893 - Lida
+
+nesse caso, o bacukp que fizemos, se for feita outra conta, só vamos conseguimos passar uma parte para o telefone novamente. Se o senhor não quiser perder todo backup dai tem que tentar recuperar a senha do icloud.
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 10:30:42 from Amauri Os 27893 (+554192857821) - Lida
+
+Vocês conseguem recuperar a senha?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 11:00:21 to Amauri Os 27893 - Reproduzida
+
+3a0d22ad-c7e5-4b28-b54b-34c150b4e656.opus (Áudio)
+00:21
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 11:09:42 from Amauri Os 27893 (+554192857821) - Lida
+
+Tenta 41 991270860
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 12:49:46 to Amauri Os 27893 - Lida
+
+ok, mais tarde irei tentar, e convfirmo com vcs. pois a apple ira enviar um sms para este numero
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 13:03:45 from Amauri Os 27893 (+554192857821) - Lida
+
+Ok
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 14:33:06 from Amauri Os 27893 (+554192857821) - Lida
+
+Alguma novidade?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:27:28 to Amauri Os 27893 - Lida
+
+Então, o técnico ainda esta avaliando o aparelho para detectar a causa.
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:27:43 to Amauri Os 27893 - Lida
+
+mas podemos tentar a redefiniçao da senha do icloud
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:28:21 to Amauri Os 27893 - Lida
+
+➜ Respondendo para Amauri Os 27893, 2023-02-17 11:09:42: « Tenta 41 991270860 »
+
+logo mais vcs irão receber um código por SMS no numero que passou? esta usando este chip em outro aparelho?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:29:09 from Amauri Os 27893 (+554192857821) - Lida
+
+Sim
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:29:57 to Amauri Os 27893 - Lida
+
+Não é este numero vinculado ao iCloud.. Vcs tem um telefone terminando em 93?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:30:30 from Amauri Os 27893 (+554192857821) - Lida
+
+992355293
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:30:52 from Amauri Os 27893 (+554192857821) - Lida
+
+É esse aí aí
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:31:08 to Amauri Os 27893 - Lida
+
+ok, preciso do código enviado agora
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:32:31 from Amauri Os 27893 (+554192857821) - Lida
+
+Pra qual número vai vir o código?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:32:44 to Amauri Os 27893 - Lida
+
+➜ Respondendo para Amauri Os 27893, 2023-02-17 15:30:30: « 992355293 »
+
+este
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:33:04 from Amauri Os 27893 (+554192857821) - Lida
+
+Esse está aí com vc
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:33:11 to Amauri Os 27893 - Lida
+
+Ah…ok
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:33:16 to Amauri Os 27893 - Lida
+
+vou colocar em um aparelho
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:34:40 to Amauri Os 27893 - Lida
+
+qual senha gostaria de colocar?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:36:27 from Amauri Os 27893 (+554192857821) - Lida
+
+001851
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:37:17 to Amauri Os 27893 - Lida
+
+Não, tem q ser letras e numeros, com uma letra maiuscula.  Mas beleza.  coloquei uma nossa. depois alteramos
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 15:37:32 from Amauri Os 27893 (+554192857821) - Lida
+
+Ok
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 16:27:58 from Amauri Os 27893 (+554192857821) - Lida
+
+Posso ir buscar o celular?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 16:28:22 to Amauri Os 27893 - Lida
+
+ele ainda não ficou pronto.  Esta dificil de encontrar a causa do reinicio.
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 16:28:37 from Amauri Os 27893 (+554192857821) - Lida
+
+Ok
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 17:23:35 from Amauri Os 27893 (+554192857821) - Reproduzida
+
+854635d9-e766-4560-873e-6e80f4ad720d.opus (Áudio)
+00:05
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 17:24:10 to Amauri Os 27893 - Lida
+
+sim sim, amanhã vamos ficar ate as 13h
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 17:24:33 from Amauri Os 27893 (+554192857821) - Reproduzida
+
+9bca9d3c-88f6-4d4a-9784-50beea42c6bb.opus (Áudio)
+00:14
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 18:30:18 to Amauri Os 27893 - Lida
+
+Ele esta no laboratório.
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 19:41:09 to Amauri Os 27893 - Lida
+
+Mas esta em testes, avisamos amanha pela manha se deu certo
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-17 19:56:32 from Amauri Os 27893 (+554192857821) - Lida
+
+Ok obrigado
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-18 09:26:46 from Amauri Os 27893 (+554192857821) - Lida
+
+Bom dia
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-18 09:27:31 from Amauri Os 27893 (+554192857821) - Lida
+
+Conseguiu arrumar o celular?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-18 09:27:34 to Amauri Os 27893 - Lida
+
+OI bom dia. 
+deu certo o reparo da placa. 
+mas ainda temos que montar o aparelho e restaurar seu backup nele. 
+deve ficar pronto próximo das 12:30, 13hs
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-18 09:28:23 from Amauri Os 27893 (+554192857821) - Lida
+
+Maravilhosa passo aí até às 13horas
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-18 09:28:49 to Amauri Os 27893 - Lida
+
+ok, fechamos as 13, passe um pouco antes.
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-18 09:29:01 from Amauri Os 27893 (+554192857821) - Lida
+
+👍
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-18 11:37:52 from Amauri Os 27893 (+554192857821) - Lida
+
+Olá, posso ir buscar o celular?
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-18 12:11:35 to Amauri Os 27893 - Lida
+
+olá bom dia, estamos ainda testando ele.
+
+----------------------------------------------------
+Amauri Os 27893
+2023-02-18 12:15:40 to Amauri Os 27893 - Reproduzida
+
+0904e66c-be07-4fac-8d97-92d7fdc136c3.opus (Áudio)
+00:46
+
