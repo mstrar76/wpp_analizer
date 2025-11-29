@@ -77,7 +77,7 @@ ${transcript}
 
 ${rulesSection}
 
-Analyze this conversation and extract the following information in JSON format:
+Analyze this conversation and extract the following information in JSON format, all user output must be in portuguese:
 
 {
   "channel": "<Lead source - MUST be one of: ${channelOptions}>",
