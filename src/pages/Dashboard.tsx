@@ -10,6 +10,10 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 export default function Dashboard() {
   const { chats, loading } = useChats();
   const [datePreset, setDatePreset] = useState('allTime');
+  const [customRange, setCustomRange] = useState<{ start: string; end: string }>({
+    start: '',
+    end: '',
+  });
   const [activeFilters, setActiveFilters] = useState<{ device?: string; channel?: string }>({});
   const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
 
@@ -22,11 +26,31 @@ export default function Dashboard() {
     });
   }, []);
 
+  useEffect(() => {
+    if (datePreset === 'custom' && (!customRange.start || !customRange.end)) {
+      const now = new Date();
+      const weekAgo = new Date();
+      weekAgo.setDate(now.getDate() - 7);
+      setCustomRange({
+        start: weekAgo.toISOString().split('T')[0],
+        end: now.toISOString().split('T')[0],
+      });
+    }
+  }, [datePreset, customRange.start, customRange.end]);
+
   const filteredChats = useMemo(() => {
     let filtered = chats;
     
     // Apply date filter
-    if (datePreset !== 'allTime') {
+    if (datePreset === 'custom') {
+      if (customRange.start && customRange.end) {
+        const startDate = new Date(`${customRange.start}T00:00:00`);
+        const endDate = new Date(`${customRange.end}T23:59:59`);
+        if (!Number.isNaN(startDate.valueOf()) && !Number.isNaN(endDate.valueOf())) {
+          filtered = filterByDateRange(filtered, startDate, endDate);
+        }
+      }
+    } else if (datePreset !== 'allTime') {
       const range = getDateRangePreset(datePreset);
       filtered = filterByDateRange(filtered, range.start, range.end);
     }
@@ -42,7 +66,7 @@ export default function Dashboard() {
     }
     
     return filtered;
-  }, [chats, datePreset, activeFilters]);
+  }, [chats, datePreset, activeFilters, customRange]);
 
   const kpis = useMemo(() => calculateKPIs(filteredChats), [filteredChats]);
   const deviceData = useMemo(() => getDeviceBreakdown(filteredChats), [filteredChats]);
@@ -83,17 +107,46 @@ export default function Dashboard() {
           <p className="text-gray-600 mt-1">Analytics overview of your WhatsApp conversations</p>
         </div>
         
-        <select
-          value={datePreset}
-          onChange={(e) => setDatePreset(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="last7days">Last 7 Days</option>
-          <option value="thisMonth">This Month</option>
-          <option value="lastMonth">Last Month</option>
-          <option value="last30days">Last 30 Days</option>
-          <option value="allTime">All Time</option>
-        </select>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <select
+            value={datePreset}
+            onChange={(e) => setDatePreset(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="last7days">Últimos 7 dias</option>
+            <option value="thisMonth">Este mês</option>
+            <option value="thisYear">Este ano</option>
+            <option value="lastMonth">Último mês</option>
+            <option value="last30days">Últimos 30 dias</option>
+            <option value="custom">Personalizado</option>
+            <option value="allTime">Todo o período</option>
+          </select>
+
+          {datePreset === 'custom' && (
+            <div className="flex items-center gap-3 text-sm text-gray-600">
+              <label className="flex flex-col">
+                <span className="mb-1 text-xs uppercase tracking-wide">Início</span>
+                <input
+                  type="date"
+                  value={customRange.start}
+                  max={customRange.end || undefined}
+                  onChange={(e) => setCustomRange((prev) => ({ ...prev, start: e.target.value }))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </label>
+              <label className="flex flex-col">
+                <span className="mb-1 text-xs uppercase tracking-wide">Fim</span>
+                <input
+                  type="date"
+                  value={customRange.end}
+                  min={customRange.start || undefined}
+                  onChange={(e) => setCustomRange((prev) => ({ ...prev, end: e.target.value }))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </label>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Processing Progress Banner */}

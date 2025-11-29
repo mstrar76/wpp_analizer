@@ -169,6 +169,11 @@ export function getDateRangePreset(preset: string): { start: Date; end: Date } {
       start.setDate(1);
       return { start, end: now };
 
+    case 'thisYear': {
+      start.setMonth(0, 1);
+      return { start, end: now };
+    }
+
     case 'lastMonth':
       start.setMonth(now.getMonth() - 1);
       start.setDate(1);
