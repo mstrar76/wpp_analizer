@@ -4,10 +4,21 @@ import { analyzeChat } from './gemini';
 import { updateChat, getChatsByStatus } from './db';
 
 // Queue configuration
-// Gemini Flash latest has higher rate limits (15 RPM free tier, 1000 RPM paid)
-const BATCH_SIZE = 2; // Process 2 chats concurrently
-const BATCH_DELAY_MS = 1000; // 1 second between batches per user request
+// Gemini 2.5 Flash: Free tier 10 RPM, Tier 1: 1000 RPM, Tier 2: 2000 RPM
+const BATCH_SIZE = 5; // Process 5 chats concurrently (optimized for paid tier)
+const BATCH_DELAY_MS = 500; // 500ms between batches for faster processing
 const MAX_RETRIES = 2; // Retry failed analyses
+
+// Batch mode configuration (economical mode for large imports)
+let batchModeEnabled = false;
+
+export function setBatchMode(enabled: boolean): void {
+  batchModeEnabled = enabled;
+}
+
+export function isBatchModeEnabled(): boolean {
+  return batchModeEnabled;
+}
 
 // Queue state
 let isProcessing = false;

@@ -337,7 +337,7 @@ export default function Dashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Common Repairs</h3>
           {repairData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={repairData} layout="horizontal">
+              <BarChart data={repairData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="name" type="category" width={100} />

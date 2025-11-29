@@ -215,7 +215,7 @@ export async function analyzeChat(
   try {
     const prompt = buildAnalysisPrompt(messages, rules);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-flash-latest',
+      model: 'gemini-2.5-flash-preview-05-20',
       systemInstruction: {
         role: 'system',
         parts: [
@@ -259,7 +259,7 @@ export async function analyzeChat(
 export async function testApiKey(apiKey: string): Promise<boolean> {
   try {
     const testAI = new GoogleGenerativeAI(apiKey);
-    const model = testAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const model = testAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-05-20' });
     
     // Simple test prompt
     const result = await model.generateContent('Say "OK"');

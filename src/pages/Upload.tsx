@@ -4,7 +4,7 @@ import { parseWhatsAppChat } from '../utils/whatsappParser';
 import { addChats, getAllRules, getAllChats, removeDuplicateChats } from '../services/db';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
-import { startProcessing, onProgress, type QueueStats } from '../services/processingQueue';
+import { startProcessing, onProgress, setBatchMode, isBatchModeEnabled, type QueueStats } from '../services/processingQueue';
 
 interface FolderChat {
   folderName: string;
@@ -21,7 +21,14 @@ export default function Upload() {
   const [duplicateCount, setDuplicateCount] = useState(0);
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [isCleaningDuplicates, setIsCleaningDuplicates] = useState(false);
+  const [batchMode, setBatchModeState] = useState(isBatchModeEnabled());
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  function handleBatchModeToggle() {
+    const newValue = !batchMode;
+    setBatchModeState(newValue);
+    setBatchMode(newValue);
+  }
 
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault();
@@ -359,6 +366,43 @@ export default function Upload() {
         </div>
         {cleanupMessage && (
           <p className="mt-3 text-sm text-gray-700">{cleanupMessage}</p>
+        )}
+      </div>
+
+      {/* Processing Mode Toggle */}
+      <div className="mt-6 card">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900">Processing Mode</h3>
+            <p className="text-sm text-gray-600">
+              {batchMode 
+                ? 'Batch Mode: Economical processing (50% cheaper, may take up to 24h)' 
+                : 'Real-time Mode: Fast processing with immediate results'}
+            </p>
+          </div>
+          <button
+            onClick={handleBatchModeToggle}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              batchMode ? 'bg-green-600' : 'bg-gray-300'
+            }`}
+            role="switch"
+            aria-checked={batchMode}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                batchMode ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+        {batchMode && (
+          <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              <strong>⚡ Batch Mode Enabled:</strong> Large imports will be queued for asynchronous processing via Google's Batch API. 
+              Results typically complete within minutes but may take up to 24 hours during peak times. 
+              Cost is reduced by 50%.
+            </p>
+          </div>
         )}
       </div>
 
