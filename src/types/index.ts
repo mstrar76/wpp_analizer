@@ -1,35 +1,16 @@
 // Default Lead Channel Constants
 export const DefaultLeadChannels = [
+  'gAds',
   'Facebook',
   'Instagram',
-  'Google Ads',
-  'Organic',
-  'WhatsApp',
-  'Referral',
-  'TikTok',
-  'YouTube',
-  'LinkedIn',
-  'Email',
-  'SMS',
-  'Telefone',
+  'Outros',
+  'Orgânico',
   'Indicação',
-  'Site',
-  'Loja Física',
-  'Other',
+  'Cliente_Existente',
 ] as const;
 
 // LeadChannel can be any string (custom channels supported)
 export type LeadChannel = string;
-
-// Channel Configuration (for custom channels with keywords)
-export interface ChannelConfig {
-  id: string;
-  name: string;
-  keywords: string[]; // Keywords that identify this channel
-  color?: string; // Optional color for UI
-  isDefault: boolean; // Whether it's a default channel or user-created
-  createdAt: number;
-}
 
 export const ProcessingStatus = {
   PENDING: 'pending',

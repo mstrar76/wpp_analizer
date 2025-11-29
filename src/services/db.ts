@@ -1,6 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Chat, IdentifierRule, ChannelConfig } from '../types';
-import { DefaultLeadChannels } from '../types';
+import type { Chat, IdentifierRule } from '../types';
 
 // Database Schema
 interface ChatInsightDB extends DBSchema {
@@ -16,10 +15,6 @@ interface ChatInsightDB extends DBSchema {
   rules: {
     key: string;
     value: IdentifierRule;
-  };
-  channels: {
-    key: string;
-    value: ChannelConfig;
   };
 }
 
@@ -37,7 +32,7 @@ export async function getDB(): Promise<IDBPDatabase<ChatInsightDB>> {
   }
 
   dbInstance = await openDB<ChatInsightDB>(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion) {
+    upgrade(db) {
       // Create chats store
       if (!db.objectStoreNames.contains('chats')) {
         const chatStore = db.createObjectStore('chats', {
@@ -55,14 +50,6 @@ export async function getDB(): Promise<IDBPDatabase<ChatInsightDB>> {
         });
       }
 
-      // Create channels store (added in version 2)
-      if (oldVersion < 2) {
-        if (!db.objectStoreNames.contains('channels')) {
-          db.createObjectStore('channels', {
-            keyPath: 'id',
-          });
-        }
-      }
     },
   });
 
@@ -275,103 +262,6 @@ export async function initializeDefaultRules(): Promise<void> {
       tx.done,
     ]);
   }
-}
-
-// ========== CHANNEL OPERATIONS ==========
-
-/**
- * Get all channel configurations
- */
-export async function getAllChannels(): Promise<ChannelConfig[]> {
-  const db = await getDB();
-  return db.getAll('channels');
-}
-
-/**
- * Add a new channel configuration
- */
-export async function addChannel(channel: ChannelConfig): Promise<void> {
-  const db = await getDB();
-  await db.add('channels', channel);
-}
-
-/**
- * Update an existing channel
- */
-export async function updateChannel(channel: ChannelConfig): Promise<void> {
-  const db = await getDB();
-  await db.put('channels', channel);
-}
-
-/**
- * Delete a channel by ID
- */
-export async function deleteChannel(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('channels', id);
-}
-
-/**
- * Initialize default channels if none exist
- */
-export async function initializeDefaultChannels(): Promise<void> {
-  const existingChannels = await getAllChannels();
-  
-  if (existingChannels.length === 0) {
-    const defaultChannelConfigs: ChannelConfig[] = DefaultLeadChannels.map((name, index) => ({
-      id: crypto.randomUUID(),
-      name,
-      keywords: getDefaultKeywordsForChannel(name),
-      isDefault: true,
-      createdAt: Date.now() + index, // Ensure unique timestamps for ordering
-    }));
-
-    const db = await getDB();
-    const tx = db.transaction('channels', 'readwrite');
-    
-    await Promise.all([
-      ...defaultChannelConfigs.map((channel) => tx.store.add(channel)),
-      tx.done,
-    ]);
-  }
-}
-
-/**
- * Get default keywords for a channel name
- */
-function getDefaultKeywordsForChannel(channelName: string): string[] {
-  const keywordMap: Record<string, string[]> = {
-    'Facebook': ['facebook', 'fb', 'vim do facebook', 'vi no facebook'],
-    'Instagram': ['instagram', 'insta', 'vim do instagram', 'vi no instagram', 'vi no insta'],
-    'Google Ads': ['google', 'vim do google', 'pesquisei no google', 'achei no google', 'google ads'],
-    'Organic': ['organico', 'organic'],
-    'WhatsApp': ['whatsapp', 'zap', 'whats'],
-    'Referral': ['indicação', 'indicacao', 'amigo indicou', 'conhecido indicou'],
-    'TikTok': ['tiktok', 'tik tok', 'vim do tiktok'],
-    'YouTube': ['youtube', 'vim do youtube', 'vi no youtube'],
-    'LinkedIn': ['linkedin', 'vim do linkedin'],
-    'Email': ['email', 'e-mail', 'recebi email'],
-    'SMS': ['sms', 'mensagem de texto'],
-    'Telefone': ['telefone', 'ligação', 'ligacao', 'liguei'],
-    'Indicação': ['indicação', 'indicacao', 'indicou', 'recomendou', 'recomendação'],
-    'Site': ['site', 'website', 'vim do site', 'vi no site'],
-    'Loja Física': ['loja', 'loja física', 'loja fisica', 'passei na loja'],
-    'Other': [],
-  };
-  
-  return keywordMap[channelName] || [];
-}
-
-/**
- * Get all channel names (for dropdowns)
- */
-export async function getChannelNames(): Promise<string[]> {
-  const channels = await getAllChannels();
-  if (channels.length === 0) {
-    // Return defaults if no channels configured yet
-    return [...DefaultLeadChannels];
-  }
-  return channels.map(c => c.name);
 }
 
 // ========== UTILITY OPERATIONS ==========
