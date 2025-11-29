@@ -307,37 +307,35 @@ export default function Upload() {
         </div>
       )}
 
-      {/* Queue Stats */}
-      {queueStats && queueStats.pending > 0 && (
-        <div className="mt-6 card">
-          <h3 className="font-semibold text-gray-900 mb-4">Processing Queue</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Total:</span>
-              <span className="font-medium">{queueStats.total}</span>
+      {/* Queue Stats - Show when processing is active */}
+      {queueStats && queueStats.isProcessing && (
+        <div className="mt-6 card bg-blue-50 border-blue-200">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
+              <h3 className="font-semibold text-blue-900">Processing Chats...</h3>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Processed:</span>
-              <span className="font-medium text-green-600">{queueStats.processed}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Pending:</span>
-              <span className="font-medium text-blue-600">{queueStats.pending}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Failed:</span>
-              <span className="font-medium text-red-600">{queueStats.failed}</span>
-            </div>
+            <span className="text-lg font-bold text-blue-700">
+              {queueStats.total > 0 
+                ? Math.round(((queueStats.processed + queueStats.failed) / queueStats.total) * 100) 
+                : 0}%
+            </span>
           </div>
-          <div className="mt-4">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{
-                  width: `${(queueStats.processed / queueStats.total) * 100}%`,
-                }}
-              />
-            </div>
+          
+          <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden mb-3">
+            <div
+              className="bg-blue-600 h-3 rounded-full transition-all duration-300 ease-out"
+              style={{
+                width: `${queueStats.total > 0 
+                  ? ((queueStats.processed + queueStats.failed) / queueStats.total) * 100 
+                  : 0}%`,
+              }}
+            />
+          </div>
+          
+          <div className="flex justify-between text-sm text-blue-700">
+            <span>{queueStats.pending} pending</span>
+            <span>{queueStats.processed} done • {queueStats.failed} failed</span>
           </div>
         </div>
       )}

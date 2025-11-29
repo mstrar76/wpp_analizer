@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Download, X, CheckCircle, Clock, AlertCircle, XCircle, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useChats } from '../hooks/useChats';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
 import { formatToWhatsAppExport } from '../utils/whatsappParser';
 import { getAllRules } from '../services/db';
-import { reprocessAllChats, reprocessFailedChats } from '../services/processingQueue';
+import { reprocessAllChats, reprocessFailedChats, onProgress, getQueueStats, type QueueStats } from '../services/processingQueue';
 
 const PAGE_SIZE = 50;
 
@@ -20,6 +20,39 @@ export default function Chats() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isReprocessingAll, setIsReprocessingAll] = useState(false);
   const [isReprocessingFailed, setIsReprocessingFailed] = useState(false);
+  const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
+  const [initialPendingAll, setInitialPendingAll] = useState<number | null>(null);
+  const [initialPendingFailed, setInitialPendingFailed] = useState<number | null>(null);
+
+  // Subscribe to queue progress updates
+  useEffect(() => {
+    getQueueStats().then(setQueueStats);
+    
+    onProgress((stats) => {
+      setQueueStats(stats);
+      
+      // Reset initial counts when processing completes
+      if (!stats.isProcessing) {
+        setInitialPendingAll(null);
+        setInitialPendingFailed(null);
+        setIsReprocessingAll(false);
+        setIsReprocessingFailed(false);
+      }
+    });
+  }, []);
+
+  // Calculate progress percentages
+  const progressAll = useMemo(() => {
+    if (!isReprocessingAll || !initialPendingAll || initialPendingAll === 0) return 0;
+    const processed = initialPendingAll - (queueStats?.pending || 0);
+    return Math.min(100, Math.max(0, Math.round((processed / initialPendingAll) * 100)));
+  }, [isReprocessingAll, initialPendingAll, queueStats?.pending]);
+
+  const progressFailed = useMemo(() => {
+    if (!isReprocessingFailed || !initialPendingFailed || initialPendingFailed === 0) return 0;
+    const processed = initialPendingFailed - (queueStats?.pending || 0);
+    return Math.min(100, Math.max(0, Math.round((processed / initialPendingFailed) * 100)));
+  }, [isReprocessingFailed, initialPendingFailed, queueStats?.pending]);
 
   // Get unique values for filters
   const channels = useMemo(() => {
@@ -129,14 +162,15 @@ export default function Chats() {
     }
 
     setIsReprocessingAll(true);
+    setInitialPendingAll(chats.length); // Track total chats to reprocess
     try {
       const rules = await getAllRules();
       await reprocessAllChats(rules);
-      alert('Reprocessing started! Monitor the queue status for progress.');
+      // Don't show alert - progress is visible in button
     } catch (error: any) {
       alert(error.message || 'Failed to reprocess chats.');
-    } finally {
       setIsReprocessingAll(false);
+      setInitialPendingAll(null);
     }
   }
 
@@ -145,15 +179,22 @@ export default function Chats() {
       return;
     }
 
+    const failedCount = chats.filter(c => c.status === ProcessingStatus.FAILED).length;
+    if (failedCount === 0) {
+      alert('No failed chats to reprocess.');
+      return;
+    }
+
     setIsReprocessingFailed(true);
+    setInitialPendingFailed(failedCount); // Track failed chats to reprocess
     try {
       const rules = await getAllRules();
       await reprocessFailedChats(rules);
-      alert('Reprocessing of failed chats started!');
+      // Don't show alert - progress is visible in button
     } catch (error: any) {
       alert(error.message || 'Failed to reprocess failed chats.');
-    } finally {
       setIsReprocessingFailed(false);
+      setInitialPendingFailed(null);
     }
   }
 
@@ -180,19 +221,37 @@ export default function Chats() {
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={handleReprocessAll}
-            className="btn-secondary flex items-center gap-2"
-            disabled={isReprocessingAll}
+            className="btn-secondary flex items-center gap-2 relative overflow-hidden min-w-[160px]"
+            disabled={isReprocessingAll || isReprocessingFailed}
           >
-            <RefreshCw className={isReprocessingAll ? 'animate-spin' : ''} size={18} />
-            {isReprocessingAll ? 'Reprocessing...' : 'Reprocess All'}
+            {/* Progress fill background */}
+            {isReprocessingAll && progressAll > 0 && (
+              <div
+                className="absolute inset-0 bg-blue-200 transition-all duration-300 ease-out"
+                style={{ width: `${progressAll}%` }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              <RefreshCw className={isReprocessingAll ? 'animate-spin' : ''} size={18} />
+              {isReprocessingAll ? `Processing... ${progressAll}%` : 'Reprocess All'}
+            </span>
           </button>
           <button
             onClick={handleReprocessFailed}
-            className="btn-secondary flex items-center gap-2"
-            disabled={isReprocessingFailed}
+            className="btn-secondary flex items-center gap-2 relative overflow-hidden min-w-[180px]"
+            disabled={isReprocessingAll || isReprocessingFailed}
           >
-            <RefreshCw className={isReprocessingFailed ? 'animate-spin' : ''} size={18} />
-            {isReprocessingFailed ? 'Reprocessing Failed...' : 'Reprocess Failed'}
+            {/* Progress fill background */}
+            {isReprocessingFailed && progressFailed > 0 && (
+              <div
+                className="absolute inset-0 bg-orange-200 transition-all duration-300 ease-out"
+                style={{ width: `${progressFailed}%` }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              <RefreshCw className={isReprocessingFailed ? 'animate-spin' : ''} size={18} />
+              {isReprocessingFailed ? `Processing... ${progressFailed}%` : 'Reprocess Failed'}
+            </span>
           </button>
           <button onClick={exportToJSONL} className="btn-primary flex items-center gap-2">
             <Download size={18} />

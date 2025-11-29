@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
-import { TrendingUp, DollarSign, Star, Smartphone, Users, Target, X } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { TrendingUp, DollarSign, Star, Smartphone, Users, Target, X, Loader2 } from 'lucide-react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useChats } from '../hooks/useChats';
 import { calculateKPIs, getDeviceBreakdown, getLeadSourceDistribution, getCommonRepairs, getQualityDistribution, filterByDateRange, getDateRangePreset } from '../utils/analytics';
+import { onProgress, getQueueStats, type QueueStats } from '../services/processingQueue';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4'];
 
@@ -10,6 +11,16 @@ export default function Dashboard() {
   const { chats, loading } = useChats();
   const [datePreset, setDatePreset] = useState('allTime');
   const [activeFilters, setActiveFilters] = useState<{ device?: string; channel?: string }>({});
+  const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
+
+  // Subscribe to queue progress updates
+  useEffect(() => {
+    getQueueStats().then(setQueueStats);
+    
+    onProgress((stats) => {
+      setQueueStats(stats);
+    });
+  }, []);
 
   const filteredChats = useMemo(() => {
     let filtered = chats;
@@ -84,6 +95,31 @@ export default function Dashboard() {
           <option value="allTime">All Time</option>
         </select>
       </div>
+
+      {/* Processing Progress Banner */}
+      {queueStats?.isProcessing && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Loader2 className="animate-spin text-blue-600" size={18} />
+              <span className="font-medium text-blue-900">Processing chats...</span>
+            </div>
+            <span className="text-sm text-blue-700">
+              {queueStats.pending} pending • {queueStats.processed} done • {queueStats.failed} failed
+            </span>
+          </div>
+          <div className="w-full bg-blue-200 rounded-full h-2.5 overflow-hidden">
+            <div 
+              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+              style={{ 
+                width: `${queueStats.total > 0 
+                  ? Math.round(((queueStats.processed + queueStats.failed) / queueStats.total) * 100) 
+                  : 0}%` 
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Active Filters */}
       {hasActiveFilters && (
