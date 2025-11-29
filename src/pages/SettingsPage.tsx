@@ -4,6 +4,7 @@ import type { IdentifierRule, LeadChannel } from '../types';
 import { getAllRules, addRule, deleteRule } from '../services/db';
 import { getApiKey, saveApiKey, testApiKey } from '../services/gemini';
 import { reprocessAllChats } from '../services/processingQueue';
+import LogViewer from '../components/LogViewer';
 
 // Default channels
 const DEFAULT_CHANNELS = ['gAds', 'Facebook', 'Instagram', 'Outros', 'Orgânico', 'Indicação', 'Cliente_Existente'];
@@ -361,6 +362,9 @@ export default function SettingsPage() {
           )}
         </button>
       </div>
+
+      {/* System Logs */}
+      <LogViewer maxHeight="300px" />
     </div>
   );
 }

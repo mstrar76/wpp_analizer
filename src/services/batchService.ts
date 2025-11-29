@@ -1,6 +1,9 @@
 import type { Chat, IdentifierRule } from '../types';
 import { ProcessingStatus } from '../types';
 import { updateChat } from './db';
+import { createLogger } from './logger';
+
+const log = createLogger('BatchService');
 
 // Batch job status
 export type BatchStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
@@ -105,6 +108,13 @@ export function createBatchJob(chats: Chat[]): BatchJob {
     createdAt: Date.now(),
   };
 
+  log.info('Created new batch job', { 
+    jobId: job.id, 
+    totalChats: job.totalChats,
+    chatIds: job.chatIds,
+    chatFileNames: chats.map(c => c.fileName)
+  });
+
   batchJobs.push(job);
   saveBatchJobs();
   notifyBatchUpdate();
@@ -173,11 +183,23 @@ export async function processBatchJobs(
 ): Promise<void> {
   const queuedJobs = batchJobs.filter(job => job.status === 'queued');
   
+  log.info('Starting batch processing', { 
+    queuedJobsCount: queuedJobs.length,
+    totalJobsCount: batchJobs.length 
+  });
+  
   for (const job of queuedJobs) {
     // Check if cancelled
     if (batchJobs.find(j => j.id === job.id)?.status === 'cancelled') {
+      log.info('Job was cancelled, skipping', { jobId: job.id });
       continue;
     }
+
+    log.info('Starting job processing', { 
+      jobId: job.id, 
+      totalChats: job.totalChats,
+      chatIds: job.chatIds 
+    });
 
     // Start processing
     updateBatchJob(job.id, {
@@ -189,30 +211,66 @@ export async function processBatchJobs(
       // Import db functions dynamically to avoid circular dependencies
       const { getChat } = await import('./db');
 
-      for (const chatId of job.chatIds) {
+      for (let i = 0; i < job.chatIds.length; i++) {
+        const chatId = job.chatIds[i];
+        
         // Check if job was cancelled
         const currentJob = batchJobs.find(j => j.id === job.id);
         if (currentJob?.status === 'cancelled') {
+          log.info('Job cancelled mid-processing', { jobId: job.id, processedSoFar: i });
           break;
         }
 
+        log.debug('Processing chat', { 
+          jobId: job.id, 
+          chatId, 
+          index: i + 1, 
+          total: job.chatIds.length 
+        });
+
         try {
           const chat = await getChat(chatId);
-          if (chat && chat.status !== ProcessingStatus.DONE) {
-            const processedChat = await analyzeFunction(chat, rules);
-            await updateChat(processedChat);
-            
+          
+          if (!chat) {
+            log.warn('Chat not found in database', { chatId, jobId: job.id });
             updateBatchJob(job.id, {
-              processedChats: (currentJob?.processedChats || 0) + 1
+              failedChats: (currentJob?.failedChats || 0) + 1
             });
-          } else {
-            // Already processed
-            updateBatchJob(job.id, {
-              processedChats: (currentJob?.processedChats || 0) + 1
-            });
+            continue;
           }
+          
+          if (chat.status === ProcessingStatus.DONE) {
+            log.debug('Chat already processed, skipping', { chatId });
+            updateBatchJob(job.id, {
+              processedChats: (currentJob?.processedChats || 0) + 1
+            });
+            continue;
+          }
+
+          log.info('Analyzing chat with AI', { chatId, fileName: chat.fileName });
+          
+          const processedChat = await analyzeFunction(chat, rules);
+          await updateChat(processedChat);
+          
+          log.info('Chat processed successfully', { 
+            chatId, 
+            fileName: chat.fileName,
+            channel: processedChat.analysis?.channel,
+            converted: processedChat.analysis?.converted
+          });
+          
+          updateBatchJob(job.id, {
+            processedChats: (currentJob?.processedChats || 0) + 1
+          });
+          
         } catch (error) {
-          console.error(`Batch job ${job.id}: Failed to process chat ${chatId}:`, error);
+          const errorObj = error as Error;
+          log.error('Failed to process chat', errorObj, { 
+            chatId, 
+            jobId: job.id,
+            errorMessage: errorObj.message 
+          });
+          
           updateBatchJob(job.id, {
             failedChats: (batchJobs.find(j => j.id === job.id)?.failedChats || 0) + 1
           });
@@ -225,20 +283,34 @@ export async function processBatchJobs(
       // Mark as completed
       const finalJob = batchJobs.find(j => j.id === job.id);
       if (finalJob?.status !== 'cancelled') {
+        log.info('Job completed', { 
+          jobId: job.id, 
+          processedChats: finalJob?.processedChats,
+          failedChats: finalJob?.failedChats,
+          duration: finalJob?.startedAt ? Date.now() - finalJob.startedAt : 0
+        });
+        
         updateBatchJob(job.id, {
           status: 'completed',
           completedAt: Date.now()
         });
       }
     } catch (error) {
-      console.error(`Batch job ${job.id} failed:`, error);
+      const errorObj = error as Error;
+      log.error('Batch job failed with critical error', errorObj, { 
+        jobId: job.id,
+        errorMessage: errorObj.message 
+      });
+      
       updateBatchJob(job.id, {
         status: 'failed',
-        error: (error as Error).message,
+        error: errorObj.message,
         completedAt: Date.now()
       });
     }
   }
+  
+  log.info('Batch processing cycle completed');
 }
 
 /**
