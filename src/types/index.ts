@@ -1,15 +1,35 @@
-// Lead Channel Constants (using const objects instead of enums for better TS compatibility)
-export const LeadChannel = {
-  FACEBOOK: 'Facebook',
-  INSTAGRAM: 'Instagram',
-  GOOGLE_ADS: 'Google Ads',
-  ORGANIC: 'Organic',
-  WHATSAPP: 'WhatsApp',
-  REFERRAL: 'Referral',
-  OTHER: 'Other',
-} as const;
+// Default Lead Channel Constants
+export const DefaultLeadChannels = [
+  'Facebook',
+  'Instagram',
+  'Google Ads',
+  'Organic',
+  'WhatsApp',
+  'Referral',
+  'TikTok',
+  'YouTube',
+  'LinkedIn',
+  'Email',
+  'SMS',
+  'Telefone',
+  'Indicação',
+  'Site',
+  'Loja Física',
+  'Other',
+] as const;
 
-export type LeadChannel = typeof LeadChannel[keyof typeof LeadChannel];
+// LeadChannel can be any string (custom channels supported)
+export type LeadChannel = string;
+
+// Channel Configuration (for custom channels with keywords)
+export interface ChannelConfig {
+  id: string;
+  name: string;
+  keywords: string[]; // Keywords that identify this channel
+  color?: string; // Optional color for UI
+  isDefault: boolean; // Whether it's a default channel or user-created
+  createdAt: number;
+}
 
 export const ProcessingStatus = {
   PENDING: 'pending',
