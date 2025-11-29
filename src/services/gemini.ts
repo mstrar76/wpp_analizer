@@ -64,6 +64,12 @@ ${rules.map((rule) => `- If conversation contains "${rule.keyword}" -> Channel: 
 Apply these rules FIRST before using AI inference for channel attribution.`
     : '';
 
+  // Build channel options from rules (extract unique channels) + defaults
+  const ruleChannels = rules.map(r => r.channel);
+  const defaultChannels = ['gAds', 'Facebook', 'Instagram', 'Outros', 'Orgânico', 'Indicação', 'Cliente_Existente'];
+  const allChannels = [...new Set([...defaultChannels, ...ruleChannels])];
+  const channelOptions = allChannels.join(', ');
+
   return `You are analyzing a WhatsApp customer service conversation for a Tech/Repair shop.
 
 CONVERSATION TRANSCRIPT:
@@ -74,7 +80,7 @@ ${rulesSection}
 Analyze this conversation and extract the following information in JSON format:
 
 {
-  "channel": "<Lead source: Facebook, Instagram, Google Ads, Organic, WhatsApp, Referral, or Other>",
+  "channel": "<Lead source - MUST be one of: ${channelOptions}>",
   "equipmentType": "<High-level category: iPhone, Mac, iPad, Android, Other>",
   "equipmentLine": "<Specific model, e.g., iPhone 13 Pro, MacBook Air M2>",
   "repairType": "<Service category: Screen, Battery, Board, Software, Water Damage, Other>",
@@ -87,12 +93,18 @@ Analyze this conversation and extract the following information in JSON format:
 }
 
 INSTRUCTIONS:
-- For channel: Check identification rules first, then infer from conversation context
+- For channel: STRICTLY use one of these values: ${channelOptions}
+  - If rules match keywords in conversation, use the rule's channel
+  - "gAds" = Google Ads (customer found via Google search/ads)
+  - "Orgânico" = Organic (customer found naturally, no paid ads)
+  - "Indicação" = Referral (customer was referred by someone)
+  - "Cliente_Existente" = Existing customer returning
+  - "Outros" = Other/Unknown source
 - For negotiationValue: Extract only if explicitly mentioned (e.g., "250 reais", "R$ 150")
 - For converted: Mark true only if customer confirmed service/purchase
 - For qualityScore: Consider response time perception, professionalism, problem solving, clarity
 - Be precise with equipment models when mentioned
-- Use "Other" or null for missing/unclear information
+- Use "Outros" for unknown channel, null for missing numeric values
 - Respond ONLY with a valid JSON object. Do not include markdown fences, explanations, or trailing text.`;
 }
 
