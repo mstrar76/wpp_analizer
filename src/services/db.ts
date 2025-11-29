@@ -237,7 +237,7 @@ export async function initializeDefaultRules(): Promise<void> {
       {
         id: crypto.randomUUID(),
         keyword: 'vim do google',
-        channel: 'Google Ads',
+        channel: 'gAds',
         createdAt: Date.now(),
       },
       {
@@ -250,6 +250,24 @@ export async function initializeDefaultRules(): Promise<void> {
         id: crypto.randomUUID(),
         keyword: 'vim do facebook',
         channel: 'Facebook',
+        createdAt: Date.now(),
+      },
+      {
+        id: crypto.randomUUID(),
+        keyword: 'cliente',
+        channel: 'Cliente_Existente',
+        createdAt: Date.now(),
+      },
+      {
+        id: crypto.randomUUID(),
+        keyword: 'indicação',
+        channel: 'Indicação',
+        createdAt: Date.now(),
+      },
+      {
+        id: crypto.randomUUID(),
+        keyword: 'indicou',
+        channel: 'Indicação',
         createdAt: Date.now(),
       },
     ];
