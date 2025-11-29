@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { AlertCircle, CheckCircle, FolderOpen } from 'lucide-react';
 import { parseWhatsAppChat } from '../utils/whatsappParser';
-import { addChats, getAllRules, getAllChats, removeDuplicateChats } from '../services/db';
+import { addChats, getAllRules, getAllChats, removeDuplicateChats, deleteUnprocessedChats } from '../services/db';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
 import { startProcessing, onProgress, setBatchMode, isBatchModeEnabled, type QueueStats } from '../services/processingQueue';
@@ -24,6 +24,8 @@ export default function Upload() {
   const [duplicateCount, setDuplicateCount] = useState(0);
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [isCleaningDuplicates, setIsCleaningDuplicates] = useState(false);
+  const [isCleaningUnprocessed, setIsCleaningUnprocessed] = useState(false);
+  const [unprocessedCleanupMessage, setUnprocessedCleanupMessage] = useState<string | null>(null);
   const [batchMode, setBatchModeState] = useState(isBatchModeEnabled());
   const [batchJobs, setBatchJobs] = useState<BatchJob[]>(getBatchJobs());
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -199,17 +201,8 @@ export default function Upload() {
         // Create batch job for economical processing
         createBatchJob(chats);
         
-        // Process batch jobs asynchronously
-        processBatchJobs(rules, async (chat, rulesList) => {
-          chat.status = ProcessingStatus.PROCESSING;
-          const analysis = await analyzeChat(chat.messages, rulesList);
-          return {
-            ...chat,
-            analysis,
-            status: ProcessingStatus.DONE,
-            processedAt: Date.now(),
-          };
-        });
+        // Process batch jobs asynchronously (starts polling loop)
+        processBatchJobs(rules);
       } else {
         // Real-time processing
         onProgress((stats) => {
@@ -253,6 +246,28 @@ export default function Upload() {
       setCleanupMessage(error.message || 'Failed to remove duplicates.');
     } finally {
       setIsCleaningDuplicates(false);
+    }
+  }
+
+  async function handleClearUnprocessed() {
+    if (!confirm('Remove all chats that have not been processed yet? This will allow you to re-import them.')) {
+      return;
+    }
+
+    setIsCleaningUnprocessed(true);
+    setUnprocessedCleanupMessage(null);
+
+    try {
+      const removed = await deleteUnprocessedChats();
+      if (removed === 0) {
+        setUnprocessedCleanupMessage('No unprocessed chats were found.');
+      } else {
+        setUnprocessedCleanupMessage(`Removed ${removed} unprocessed chat${removed === 1 ? '' : 's'}. You can now re-import them.`);
+      }
+    } catch (error: any) {
+      setUnprocessedCleanupMessage(error.message || 'Failed to remove unprocessed chats.');
+    } finally {
+      setIsCleaningUnprocessed(false);
     }
   }
 
@@ -398,6 +413,28 @@ export default function Upload() {
         </div>
         {cleanupMessage && (
           <p className="mt-3 text-sm text-gray-700">{cleanupMessage}</p>
+        )}
+      </div>
+
+      {/* Unprocessed Chats Cleanup */}
+      <div className="mt-6 card">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900">Clear Unprocessed Chats</h3>
+            <p className="text-sm text-gray-600">
+              Remove chats that were imported but not processed. This allows you to re-import them.
+            </p>
+          </div>
+          <button
+            onClick={handleClearUnprocessed}
+            className="btn-secondary self-start sm:self-auto text-orange-600 border-orange-300 hover:bg-orange-50"
+            disabled={isCleaningUnprocessed}
+          >
+            {isCleaningUnprocessed ? 'Clearing...' : 'Clear unprocessed'}
+          </button>
+        </div>
+        {unprocessedCleanupMessage && (
+          <p className="mt-3 text-sm text-gray-700">{unprocessedCleanupMessage}</p>
         )}
       </div>
 

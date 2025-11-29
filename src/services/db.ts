@@ -158,6 +158,22 @@ export async function countChats(): Promise<number> {
   return db.count('chats');
 }
 
+/**
+ * Delete all chats that are not processed (status != DONE)
+ */
+export async function deleteUnprocessedChats(): Promise<number> {
+  const db = await getDB();
+  const tx = db.transaction('chats', 'readwrite');
+  const store = tx.store;
+  const allChats = await store.getAll();
+  
+  const toDelete = allChats.filter(chat => chat.status !== 'done').map(chat => chat.id);
+  
+  await Promise.all(toDelete.map((id) => store.delete(id)));
+  await tx.done;
+  return toDelete.length;
+}
+
 export async function removeDuplicateChats(): Promise<number> {
   const db = await getDB();
   const tx = db.transaction('chats', 'readwrite');

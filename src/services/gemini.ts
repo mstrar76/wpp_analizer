@@ -51,7 +51,7 @@ export function isApiKeyConfigured(): boolean {
 /**
  * Build the analysis prompt with user rules
  */
-function buildAnalysisPrompt(
+export function buildAnalysisPrompt(
   messages: ChatMessage[],
   rules: IdentifierRule[]
 ): string {
@@ -158,7 +158,7 @@ function extractJsonObject(text: string): string | null {
 /**
  * Parse Gemini response to AnalysisResult
  */
-function parseGeminiResponse(responseText: string): AnalysisResult {
+export function parseGeminiResponse(responseText: string): AnalysisResult {
   try {
     const cleaned = stripCodeFences(responseText);
     let parsed: any;
