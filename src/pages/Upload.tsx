@@ -1,10 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { AlertCircle, CheckCircle, FolderOpen } from 'lucide-react';
 import { parseWhatsAppChat } from '../utils/whatsappParser';
 import { addChats, getAllRules, getAllChats, removeDuplicateChats } from '../services/db';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
 import { startProcessing, onProgress, setBatchMode, isBatchModeEnabled, type QueueStats } from '../services/processingQueue';
+import { createBatchJob, getBatchJobs, onBatchUpdate, processBatchJobs, type BatchJob } from '../services/batchService';
+import { analyzeChat } from '../services/gemini';
+import BatchProgressPanel from '../components/BatchProgressPanel';
 
 interface FolderChat {
   folderName: string;
@@ -22,7 +25,16 @@ export default function Upload() {
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [isCleaningDuplicates, setIsCleaningDuplicates] = useState(false);
   const [batchMode, setBatchModeState] = useState(isBatchModeEnabled());
+  const [batchJobs, setBatchJobs] = useState<BatchJob[]>(getBatchJobs());
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Subscribe to batch job updates
+  useEffect(() => {
+    const unsubscribe = onBatchUpdate((jobs) => {
+      setBatchJobs(jobs);
+    });
+    return unsubscribe;
+  }, []);
 
   function handleBatchModeToggle() {
     const newValue = !batchMode;
@@ -180,16 +192,31 @@ export default function Upload() {
       // Save to database
       await addChats(chats);
       
-      // Start processing
+      // Get rules
       const rules = await getAllRules();
       
-      // Set up progress tracking
-      onProgress((stats) => {
-        setQueueStats(stats);
-      });
-      
-      // Start processing in background
-      startProcessing(rules);
+      if (batchMode) {
+        // Create batch job for economical processing
+        createBatchJob(chats);
+        
+        // Process batch jobs asynchronously
+        processBatchJobs(rules, async (chat, rulesList) => {
+          chat.status = ProcessingStatus.PROCESSING;
+          const analysis = await analyzeChat(chat.messages, rulesList);
+          return {
+            ...chat,
+            analysis,
+            status: ProcessingStatus.DONE,
+            processedAt: Date.now(),
+          };
+        });
+      } else {
+        // Real-time processing
+        onProgress((stats) => {
+          setQueueStats(stats);
+        });
+        startProcessing(rules);
+      }
       
       setUploadSuccess(true);
       setTimeout(() => {
@@ -345,6 +372,11 @@ export default function Upload() {
             <span>{queueStats.processed} done • {queueStats.failed} failed</span>
           </div>
         </div>
+      )}
+
+      {/* Batch Processing Progress */}
+      {batchJobs.length > 0 && (
+        <BatchProgressPanel className="mt-6" />
       )}
 
       {/* Duplicate cleanup */}
