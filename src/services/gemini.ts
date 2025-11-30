@@ -4,6 +4,8 @@ import { formatToWhatsAppExport } from '../utils/whatsappParser';
 
 let genAI: GoogleGenerativeAI | null = null;
 
+const MODEL_ID = 'gemini-2.5-flash';
+
 /**
  * Initialize Gemini AI with API key
  */
@@ -215,7 +217,7 @@ export async function analyzeChat(
   try {
     const prompt = buildAnalysisPrompt(messages, rules);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash-preview-05-20',
+      model: MODEL_ID,
       systemInstruction: {
         role: 'system',
         parts: [
@@ -259,13 +261,13 @@ export async function analyzeChat(
 export async function testApiKey(apiKey: string): Promise<boolean> {
   try {
     const testAI = new GoogleGenerativeAI(apiKey);
-    const model = testAI.getGenerativeModel({ model: 'gemini-2.5-flash-preview-05-20' });
+    const model = testAI.getGenerativeModel({ model: MODEL_ID });
+
+    // Simple test prompt; accept OK/ok in any casing
+    const result = await model.generateContent('Say OK');
+    const text = result.response.text().toLowerCase();
     
-    // Simple test prompt
-    const result = await model.generateContent('Say "OK"');
-    const text = result.response.text();
-    
-    return text.includes('OK');
+    return text.includes('ok');
   } catch (error) {
     console.error('API key test failed:', error);
     return false;

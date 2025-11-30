@@ -5,8 +5,10 @@ import { updateChat, getChatsByStatus } from './db';
 
 // Queue configuration
 // Gemini 2.5 Flash: Free tier 10 RPM, Tier 1: 1000 RPM, Tier 2: 2000 RPM
-const BATCH_SIZE = 5; // Process 5 chats concurrently (optimized for paid tier)
-const BATCH_DELAY_MS = 500; // 500ms between batches for faster processing
+const DEFAULT_BATCH_SIZE = 5; // Paid tier
+const BATCH_MODE_SIZE = 3; // Gentler for free/low tiers
+const DEFAULT_BATCH_DELAY_MS = 500;
+const BATCH_MODE_DELAY_MS = 1000; // Slow down when batch mode on
 const MAX_RETRIES = 2; // Retry failed analyses
 
 // Batch mode configuration (economical mode for large imports)
@@ -18,6 +20,12 @@ export function setBatchMode(enabled: boolean): void {
 
 export function isBatchModeEnabled(): boolean {
   return batchModeEnabled;
+}
+
+function getBatchSettings() {
+  return batchModeEnabled
+    ? { size: BATCH_MODE_SIZE, delay: BATCH_MODE_DELAY_MS }
+    : { size: DEFAULT_BATCH_SIZE, delay: DEFAULT_BATCH_DELAY_MS };
 }
 
 // Queue state
@@ -185,23 +193,25 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
   isProcessing = true;
 
   try {
+    const { size: batchSize, delay: batchDelay } = getBatchSettings();
     let pendingChats = await getChatsByStatus(ProcessingStatus.PENDING);
 
     while (pendingChats.length > 0) {
       // Get batch
-      const batch = pendingChats.slice(0, BATCH_SIZE);
+      const batch = pendingChats.slice(0, batchSize);
       
       logQueueEvent('info', 'Processing batch', {
         batchSize: batch.length,
         totalPending: pendingChats.length,
+        batchModeEnabled,
       });
 
       // Process batch
       await processBatch(batch, rules);
 
       // Wait before next batch (rate limiting)
-      if (pendingChats.length > BATCH_SIZE) {
-        await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+      if (pendingChats.length > batchSize) {
+        await new Promise((resolve) => setTimeout(resolve, batchDelay));
       }
 
       // Get updated pending chats
@@ -333,8 +343,9 @@ export async function getEstimatedTimeRemaining(): Promise<number> {
 
   // Average 3-5 seconds per chat + batch delays
   const avgTimePerChat = 4; // seconds
-  const batchCount = Math.ceil(stats.pending / BATCH_SIZE);
-  const totalBatchDelay = (batchCount - 1) * (BATCH_DELAY_MS / 1000);
+  const { size: batchSize, delay: batchDelay } = getBatchSettings();
+  const batchCount = Math.ceil(stats.pending / batchSize);
+  const totalBatchDelay = (batchCount - 1) * (batchDelay / 1000);
   
   return (stats.pending * avgTimePerChat) + totalBatchDelay;
 }

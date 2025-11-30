@@ -1,0 +1,8 @@
+node_modules
+dist
+npm-debug.log
+yarn-error.log
+.pnpm-store
+.turbo
+.DS_Store
+.env.local
