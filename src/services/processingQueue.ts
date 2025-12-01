@@ -4,12 +4,38 @@ import { analyzeChat } from './gemini';
 import { updateChat, getChatsByStatus } from './db';
 
 // Queue configuration
-// Gemini 2.5 Flash: Free tier 10 RPM, Tier 1: 1000 RPM, Tier 2: 2000 RPM
-const DEFAULT_BATCH_SIZE = 5; // Paid tier
-const BATCH_MODE_SIZE = 3; // Gentler for free/low tiers
-const DEFAULT_BATCH_DELAY_MS = 500;
-const BATCH_MODE_DELAY_MS = 1000; // Slow down when batch mode on
-const MAX_RETRIES = 2; // Retry failed analyses
+// Gemini 2.5 Flash Tier 1: 1000 RPM (approx 16 requests/sec)
+const DEFAULT_BATCH_SIZE = 10; // Optimized for Tier 1
+const BATCH_MODE_SIZE = 3; // Safe fallback
+const DEFAULT_BATCH_DELAY_MS = 200; // Aggressive scheduling (5 batches/sec theoretical max)
+const BATCH_MODE_DELAY_MS = 1000;
+const MAX_RETRIES = 2;
+
+// Adaptive Rate Limiting State
+let isRateLimited = false;
+let rateLimitBackoffMs = 5000; // Start with 5s backoff
+const MAX_BACKOFF_MS = 60000; // Max 1 minute backoff
+
+function triggerRateLimitBackoff() {
+  if (!isRateLimited) {
+    isRateLimited = true;
+    logQueueEvent('info', 'Rate limit hit. Pausing queue.', { backoffMs: rateLimitBackoffMs });
+    
+    // Reset backoff after successful period? implemented in processQueue
+    setTimeout(() => {
+      isRateLimited = false;
+      // Increase backoff for next time if we hit it again quickly
+      rateLimitBackoffMs = Math.min(rateLimitBackoffMs * 2, MAX_BACKOFF_MS);
+      logQueueEvent('info', 'Resuming queue after backoff.');
+    }, rateLimitBackoffMs);
+  }
+}
+
+function resetRateLimitBackoff() {
+  if (rateLimitBackoffMs > 5000) {
+    rateLimitBackoffMs = 5000; // Reset to base
+  }
+}
 
 // Batch mode configuration (economical mode for large imports)
 let batchModeEnabled = false;
@@ -146,7 +172,19 @@ async function processSingleChat(
       stack: error?.stack,
     });
 
-    // Retry logic
+    // Check for Rate Limit (429)
+    if (error.message?.includes('429') || error.message?.includes('Rate limit')) {
+       triggerRateLimitBackoff();
+       // Do not retry immediately; let the queue loop handle the pause.
+       // But we need to put this chat back to PENDING so it gets picked up again.
+       chat.status = ProcessingStatus.PENDING; 
+       chat.error = undefined; // Clear error so it looks like fresh pending
+       await updateChat(chat);
+       await notifyProgress();
+       return; 
+    }
+
+    // Retry logic (for non-rate-limit errors)
     if (retryCount < MAX_RETRIES && !error.message.includes('Invalid API key')) {
       logQueueEvent('info', 'Retrying chat processing', {
         chatId: chat.id,
@@ -195,8 +233,16 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
   try {
     const { size: batchSize, delay: batchDelay } = getBatchSettings();
     let pendingChats = await getChatsByStatus(ProcessingStatus.PENDING);
+    let successfulBatches = 0;
 
     while (pendingChats.length > 0) {
+      // Check for Rate Limit Pause
+      if (isRateLimited) {
+        logQueueEvent('info', `Queue paused for rate limit backoff (${rateLimitBackoffMs}ms)...`);
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Check every second
+        continue; // Loop again to check if paused flag is cleared
+      }
+
       // Get batch
       const batch = pendingChats.slice(0, batchSize);
       
@@ -208,6 +254,15 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
 
       // Process batch
       await processBatch(batch, rules);
+      
+      // Adaptive improvement: If batch succeeded without rate limits, decrement backoff
+      if (!isRateLimited) {
+        successfulBatches++;
+        if (successfulBatches > 5) { // After 5 good batches, reset backoff safety
+           resetRateLimitBackoff();
+           successfulBatches = 0;
+        }
+      }
 
       // Wait before next batch (rate limiting)
       if (pendingChats.length > batchSize) {
