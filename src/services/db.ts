@@ -240,6 +240,64 @@ export async function getChatsByStatus(status: string): Promise<Chat[]> {
 }
 
 /**
+ * Get stats for a specific set of chat IDs
+ */
+export async function getChatStatsByIds(ids: string[]): Promise<{
+  total: number;
+  processed: number;
+  failed: number;
+  pending: number;
+  isProcessing: boolean;
+}> {
+  if (ids.length === 0) {
+    return { total: 0, processed: 0, failed: 0, pending: 0, isProcessing: false };
+  }
+
+  const { data, error } = await supabase
+    .from('wpp_chats')
+    .select('status')
+    .in('id', ids);
+
+  if (error) throw new Error(`Failed to get stats for IDs: ${error.message}`);
+
+  const stats = {
+    total: ids.length,
+    processed: 0,
+    failed: 0,
+    pending: 0,
+    isProcessing: false,
+  };
+
+  (data || []).forEach((chat) => {
+    if (chat.status === 'done') stats.processed++;
+    else if (chat.status === 'failed') stats.failed++;
+    else stats.pending++; // pending or processing counts as pending for "remaining work" perspective, or split them?
+    // processingQueue stats usually groups pending+processing as "pending" work. 
+    // Let's match getQueueStats logic:
+    // pending = pending + processing
+    // processed = done
+    // failed = failed
+  });
+  
+  // Correction: If status is 'processing', it counts towards pending work in standard queue stats logic?
+  // In getQueueStats: pending = pendingChats.length + processingChats.length
+  // So yes.
+  
+  // Re-iterate to match exactly:
+  stats.processed = 0;
+  stats.failed = 0;
+  stats.pending = 0;
+
+  (data || []).forEach((chat) => {
+    if (chat.status === 'done') stats.processed++;
+    else if (chat.status === 'failed') stats.failed++;
+    else stats.pending++; // pending or processing
+  });
+
+  return stats;
+}
+
+/**
  * Count total chats
  */
 export async function countChats(): Promise<number> {

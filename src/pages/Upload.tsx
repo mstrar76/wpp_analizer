@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { AlertCircle, CheckCircle, FolderOpen } from 'lucide-react';
 import { parseWhatsAppChat } from '../utils/whatsappParser';
-import { addChats, getAllRules, getAllChats, removeDuplicateChats, deleteUnprocessedChats } from '../services/db';
+import { addChats, getAllRules, getAllChats, removeDuplicateChats, deleteUnprocessedChats, getChatStatsByIds } from '../services/db';
 import { ProcessingStatus } from '../types';
 import type { Chat } from '../types';
 import { startProcessing, onProgress, setBatchMode, isBatchModeEnabled, type QueueStats } from '../services/processingQueue';
 import { createBatchJob, getBatchJobs, onBatchUpdate, processBatchJobs, type BatchJob } from '../services/batchService';
-import { analyzeChat } from '../services/gemini';
 import BatchProgressPanel from '../components/BatchProgressPanel';
 
 interface FolderChat {
@@ -194,6 +193,9 @@ export default function Upload() {
       // Save to database
       await addChats(chats);
       
+      // Track IDs for this session
+      const newChatIds = chats.map(c => c.id);
+
       // Get rules
       const rules = await getAllRules();
       
@@ -205,8 +207,28 @@ export default function Upload() {
         processBatchJobs(rules);
       } else {
         // Real-time processing
-        onProgress((stats) => {
-          setQueueStats(stats);
+        // Initialize stats immediately for the UI
+        const initialStats = {
+          total: chats.length,
+          processed: 0,
+          failed: 0,
+          pending: chats.length,
+          isProcessing: true
+        };
+        setQueueStats(initialStats);
+
+        onProgress(async (globalStats) => {
+          // Ignore global stats, fetch stats only for our session IDs
+          try {
+            const sessionStats = await getChatStatsByIds(newChatIds);
+            // Preserve the 'isProcessing' flag from the global stats or derived from logic
+            setQueueStats({
+              ...sessionStats,
+              isProcessing: globalStats.isProcessing // Use global processing state
+            });
+          } catch (e) {
+            console.error('Error fetching session stats:', e);
+          }
         });
         startProcessing(rules);
       }

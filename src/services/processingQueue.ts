@@ -2,6 +2,7 @@ import type { Chat, IdentifierRule } from '../types';
 import { ProcessingStatus } from '../types';
 import { analyzeChat } from './gemini';
 import { updateChat, getChatsByStatus } from './db';
+import { createLogger } from './logger';
 
 // Queue configuration
 // Gemini 2.5 Flash Tier 1: 1000 RPM (approx 16 requests/sec)
@@ -16,17 +17,19 @@ let isRateLimited = false;
 let rateLimitBackoffMs = 5000; // Start with 5s backoff
 const MAX_BACKOFF_MS = 60000; // Max 1 minute backoff
 
+const log = createLogger('processingQueue');
+
 function triggerRateLimitBackoff() {
   if (!isRateLimited) {
     isRateLimited = true;
-    logQueueEvent('info', 'Rate limit hit. Pausing queue.', { backoffMs: rateLimitBackoffMs });
+    log.info('Rate limit hit. Pausing queue.', { backoffMs: rateLimitBackoffMs });
     
     // Reset backoff after successful period? implemented in processQueue
     setTimeout(() => {
       isRateLimited = false;
       // Increase backoff for next time if we hit it again quickly
       rateLimitBackoffMs = Math.min(rateLimitBackoffMs * 2, MAX_BACKOFF_MS);
-      logQueueEvent('info', 'Resuming queue after backoff.');
+      log.info('Resuming queue after backoff.');
     }, rateLimitBackoffMs);
   }
 }
@@ -56,23 +59,6 @@ function getBatchSettings() {
 
 // Queue state
 let isProcessing = false;
-
-const SERVICE_NAME = 'processingQueue';
-
-function logQueueEvent(
-  level: 'info' | 'error',
-  message: string,
-  data: Record<string, unknown> = {}
-): void {
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    level,
-    service: SERVICE_NAME,
-    message,
-    ...data,
-  };
-  console[level === 'error' ? 'error' : 'log'](JSON.stringify(logEntry));
-}
 
 // Event callbacks
 type QueueCallback = (stats: QueueStats) => void;
@@ -138,7 +124,7 @@ async function processSingleChat(
   retryCount = 0
 ): Promise<void> {
   try {
-    logQueueEvent('info', 'Starting chat processing', {
+    log.info('Starting chat processing', {
       chatId: chat.id,
       retryCount,
     });
@@ -160,12 +146,12 @@ async function processSingleChat(
     await updateChat(chat);
     await notifyProgress();
 
-    logQueueEvent('info', 'Chat processed successfully', {
+    log.info('Chat processed successfully', {
       chatId: chat.id,
       processedAt: chat.processedAt,
     });
   } catch (error: any) {
-    logQueueEvent('error', 'Error processing chat', {
+    log.error('Error processing chat', error, {
       chatId: chat.id,
       retryCount,
       errorMessage: error?.message,
@@ -186,7 +172,7 @@ async function processSingleChat(
 
     // Retry logic (for non-rate-limit errors)
     if (retryCount < MAX_RETRIES && !error.message.includes('Invalid API key')) {
-      logQueueEvent('info', 'Retrying chat processing', {
+      log.info('Retrying chat processing', {
         chatId: chat.id,
         nextAttempt: retryCount + 1,
         maxRetries: MAX_RETRIES,
@@ -201,7 +187,7 @@ async function processSingleChat(
     await updateChat(chat);
     await notifyProgress();
 
-    logQueueEvent('error', 'Chat marked as failed', {
+    log.error('Chat marked as failed', undefined, {
       chatId: chat.id,
       finalError: chat.error,
     });
@@ -238,7 +224,7 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
     while (pendingChats.length > 0) {
       // Check for Rate Limit Pause
       if (isRateLimited) {
-        logQueueEvent('info', `Queue paused for rate limit backoff (${rateLimitBackoffMs}ms)...`);
+        log.info(`Queue paused for rate limit backoff (${rateLimitBackoffMs}ms)...`);
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Check every second
         continue; // Loop again to check if paused flag is cleared
       }
@@ -246,7 +232,7 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
       // Get batch
       const batch = pendingChats.slice(0, batchSize);
       
-      logQueueEvent('info', 'Processing batch', {
+      log.info('Processing batch', {
         batchSize: batch.length,
         totalPending: pendingChats.length,
         batchModeEnabled,
@@ -279,14 +265,14 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
       onCompleteCallback(stats);
     }
   } catch (error) {
-    logQueueEvent('error', 'Queue processing error', {
+    log.error('Queue processing error', error as Error, {
       errorMessage: (error as Error)?.message,
       stack: (error as Error)?.stack,
     });
   } finally {
     isProcessing = false;
     await notifyProgress();
-    logQueueEvent('info', 'Queue processing finished');
+    log.info('Queue processing finished');
   }
 }
 
@@ -295,11 +281,11 @@ async function processQueue(rules: IdentifierRule[]): Promise<void> {
  */
 export async function startProcessing(rules: IdentifierRule[]): Promise<void> {
   if (isProcessing) {
-    logQueueEvent('info', 'Queue already processing');
+    log.info('Queue already processing');
     return;
   }
 
-  logQueueEvent('info', 'Starting queue processing');
+  log.info('Starting queue processing');
   await processQueue(rules);
 }
 
