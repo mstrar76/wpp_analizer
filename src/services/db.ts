@@ -16,11 +16,34 @@ async function getUserId(): Promise<string> {
  * Convert database chat to frontend Chat type
  */
 function dbChatToChat(dbChat: DbChat): Chat {
+  // Revive Date objects in messages
+  const messages = ((dbChat.messages as any[]) || []).map((msg: any) => {
+    if (typeof msg.date !== 'string' || !msg.date) {
+      console.error(`dbChatToChat: Invalid date for msg: ${JSON.stringify(msg)}. Type: ${typeof msg.date}`);
+      // Fallback to epoch date if msg.date is malformed or missing, to prevent further errors
+      return { ...msg, date: new Date(0) }; 
+    }
+    try {
+      const d = new Date(msg.date);
+      if (isNaN(d.getTime())) {
+        console.error(`dbChatToChat: new Date(msg.date) returned Invalid Date for msg: ${JSON.stringify(msg)}. Original: ${msg.date}`);
+        return { ...msg, date: new Date(0) }; // Fallback to epoch
+      }
+      return {
+        ...msg,
+        date: d,
+      };
+    } catch (e) {
+      console.error(`dbChatToChat: Error parsing date for msg: ${JSON.stringify(msg)}. Original: ${msg.date}. Error: ${e}`);
+      return { ...msg, date: new Date(0) }; // Fallback to epoch
+    }
+  }) as ChatMessage[];
+
   return {
     id: dbChat.id,
     fileName: dbChat.file_name,
     content: dbChat.content,
-    messages: (dbChat.messages as ChatMessage[]) || [],
+    messages: messages,
     timestamp: dbChat.timestamp ?? undefined,
     uploadedAt: dbChat.uploaded_at,
     status: dbChat.status as ProcessingStatus,
