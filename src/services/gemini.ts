@@ -23,8 +23,9 @@ export function getApiKey(): string | null {
     return storedKey;
   }
 
+  const env = (window as any)._env_ || import.meta.env;
   // Fallback to environment variable (for development)
-  return import.meta.env.VITE_API_KEY || null;
+  return env.VITE_API_KEY || null;
 }
 
 /**

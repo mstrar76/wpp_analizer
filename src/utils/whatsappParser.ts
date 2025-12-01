@@ -314,6 +314,11 @@ export function formatToWhatsAppExport(messages: ChatMessage[]): string {
   return messages
     .map((msg) => {
       const date = msg.date;
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        console.error(`formatToWhatsAppExport: Invalid Date object for msg: ${JSON.stringify(msg)}. Type: ${typeof date}, Value: ${date}`);
+        // Use a placeholder or throw a more specific error
+        return `[INVALID_DATE: ${typeof date}] ${msg.sender}: ${msg.content}`;
+      }
       const day = String(date.getDate()).padStart(2, '0');
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const year = String(date.getFullYear()).slice(-2);
